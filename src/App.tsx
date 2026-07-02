@@ -355,6 +355,106 @@ const AppDrawerIcon = ({ className = "" }: { className?: string }) => (
   </svg>
 );
 
+const SwipeActionRow = ({
+  children,
+  onEdit,
+  onDelete,
+  onPress,
+}: {
+  children: React.ReactNode;
+  onEdit: () => void;
+  onDelete: () => void;
+  onPress?: () => void;
+}) => {
+  const [offset, setOffset] = useState(0);
+  const startX = React.useRef(0);
+  const isDragging = React.useRef(false);
+  const draggedDist = React.useRef(0);
+  const maxOffset = -120;
+
+  const startY = React.useRef(0);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    isDragging.current = true;
+    startX.current = e.clientX - offset;
+    startY.current = e.clientY;
+    draggedDist.current = 0;
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isDragging.current) return;
+    let newOffset = e.clientX - startX.current;
+    draggedDist.current = Math.abs(e.clientX - (startX.current + offset));
+    if (newOffset > 0) newOffset = 0;
+    if (newOffset < maxOffset - 20) newOffset = maxOffset - 20;
+    setOffset(newOffset);
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    isDragging.current = false;
+    
+    const verticalDist = Math.abs(e.clientY - startY.current);
+
+    if (draggedDist.current <= 10 && verticalDist <= 10) {
+      // It was a tap, not a swipe or scroll
+      if (offset < -10) {
+        // Tapped while open, so close it
+        setOffset(0);
+      } else {
+        // Tapped while closed, fire onPress
+        if (onPress) onPress();
+      }
+      return;
+    }
+
+    if (offset < maxOffset / 2) {
+      setOffset(maxOffset);
+    } else {
+      setOffset(0);
+    }
+  };
+
+  return (
+    <div className="relative w-full rounded-2xl overflow-hidden bg-slate-100 touch-pan-y">
+      {/* Background Actions */}
+      <div className="absolute inset-y-0 right-0 flex items-center justify-end px-2 gap-2 w-[120px]">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setOffset(0);
+            onEdit();
+          }}
+          className="w-11 h-11 flex items-center justify-center bg-blue-100 text-blue-600 rounded-xl hover:bg-blue-200 transition-colors cursor-pointer"
+        >
+          <LucideIcons.Edit2 className="w-5 h-5" />
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setOffset(0);
+            onDelete();
+          }}
+          className="w-11 h-11 flex items-center justify-center bg-red-100 text-red-600 rounded-xl hover:bg-red-200 transition-colors cursor-pointer"
+        >
+          <Trash2 className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Foreground Content */}
+      <div
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        style={{ transform: `translateX(${offset}px)`, touchAction: "pan-y" }}
+        className="relative z-10 w-full transition-transform duration-200 cursor-pointer"
+      >
+        {children}
+      </div>
+    </div>
+  );
+};
+
 const SlideToConfirm = ({
   onConfirm,
   onPlusClick,
@@ -693,6 +793,8 @@ export default function App() {
   const [showPartModal, setShowPartModal] = useState<boolean>(false);
   const [partFormId, setPartFormId] = useState<string | null>(null);
   const [partFormName, setPartFormName] = useState<string>("");
+  const [partFormMerk, setPartFormMerk] = useState<string>("");
+  const [partFormNotes, setPartFormNotes] = useState<string>("");
   const [partFormLifespan, setPartFormLifespan] = useState<string>("");
   const [partFormLastOdo, setPartFormLastOdo] = useState<string>("");
   const [partFormIcon, setPartFormIcon] = useState<string>("Wrench");
@@ -703,6 +805,8 @@ export default function App() {
     null,
   );
   const [serviceActionCost, setServiceActionCost] = useState<string>("");
+  const [serviceActionMerk, setServiceActionMerk] = useState<string>("");
+  const [serviceActionNotes, setServiceActionNotes] = useState<string>("");
   const [serviceActionType, setServiceActionType] = useState<
     "ganti_baru" | "perbaiki"
   >("ganti_baru");
@@ -1171,8 +1275,11 @@ export default function App() {
 
   // --- Parts Handlers ---
   const openServiceActionModal = (partId: string) => {
+    const part = spareParts.find(p => p.id === partId);
     setServiceActionPartId(partId);
     setServiceActionCost("");
+    setServiceActionMerk(part?.merk || "");
+    setServiceActionNotes(part?.notes || "");
     setServiceActionType("ganti_baru");
     setShowServiceActionModal(true);
   };
@@ -1195,16 +1302,16 @@ export default function App() {
       setExpenseHistory((prev) => [...prev, entry]);
     }
 
-    handleRecordService(serviceActionPartId);
+    handleRecordService(serviceActionPartId, serviceActionMerk, serviceActionNotes);
     setShowServiceActionModal(false);
     setServiceActionPartId(null);
   };
 
-  const handleRecordService = (partId: string) => {
+  const handleRecordService = (partId: string, merk?: string, notes?: string) => {
     setSpareParts((prev) =>
       prev.map((p) =>
         p.id === partId
-          ? { ...p, lastOdo: lastLoggedOdometer || 0, lastDate: Date.now() }
+          ? { ...p, lastOdo: lastLoggedOdometer || 0, lastDate: Date.now(), ...(merk !== undefined ? { merk } : {}), ...(notes !== undefined ? { notes } : {}) }
           : p,
       ),
     );
@@ -1229,6 +1336,8 @@ export default function App() {
   const openAddPart = () => {
     setPartFormId(null);
     setPartFormName("");
+    setPartFormMerk("");
+    setPartFormNotes("");
     setPartFormLifespan("10000");
     setPartFormLastOdo((lastLoggedOdometer || 0).toString());
     setPartFormIcon("Wrench");
@@ -1238,8 +1347,10 @@ export default function App() {
   const openEditPart = (part: any) => {
     setPartFormId(part.id);
     setPartFormName(part.name);
-    setPartFormLifespan(part.lifespanKm.toString());
-    setPartFormLastOdo(part.lastOdo.toString());
+    setPartFormMerk(part.merk || "");
+    setPartFormNotes(part.notes || "");
+    setPartFormLifespan(part.lifespanKm?.toString() || "");
+    setPartFormLastOdo(part.lastOdo?.toString() || "");
     setPartFormIcon(part.icon);
     setShowPartModal(true);
   };
@@ -1261,6 +1372,8 @@ export default function App() {
             ? {
                 ...p,
                 name: partFormName,
+                merk: partFormMerk,
+                notes: partFormNotes,
                 lifespanKm: lifespanNum,
                 lastOdo: lastOdoNum,
                 icon: partFormIcon,
@@ -1272,6 +1385,8 @@ export default function App() {
       const newPart = {
         id: Date.now().toString(),
         name: partFormName,
+        merk: partFormMerk,
+        notes: partFormNotes,
         icon: partFormIcon,
         lastOdo: lastOdoNum,
         lastDate: Date.now(),
@@ -1386,7 +1501,7 @@ export default function App() {
 
   const openEditModal = (log: FuelLog) => {
     setEditLogId(log.id);
-    setEditLogOdo(log.odoBefore.toString());
+    setEditLogOdo(log.odoBefore?.toString() || "");
     setEditLogBarAfter(log.barAfter);
     setShowEditModal(true);
   };
@@ -1469,7 +1584,7 @@ export default function App() {
       setIncomeOtherCost(
         editItem.otherCost > 0 ? editItem.otherCost.toString() : "",
       );
-      setIncomeTotal(editItem.total.toString());
+      setIncomeTotal(editItem.total?.toString() || "");
       setIncomeNotes(editItem.notes || "");
       setIncomePlatform(
         editItem.platform ||
@@ -1595,7 +1710,7 @@ export default function App() {
       setExpenseOtherCost(
         editItem.otherCost > 0 ? editItem.otherCost.toString() : "",
       );
-      setExpenseCost(editItem.cost.toString());
+      setExpenseCost(editItem.cost?.toString() || "");
       setExpenseNotes(editItem.notes || "");
       setExpensePlatform(
         editItem.platform ||
@@ -1874,8 +1989,8 @@ export default function App() {
                         type="text"
                         placeholder={
                           vehicleType === "mobil"
-                            ? (lang === "id" ? "misalnya, BMW E46" : "e.g., BMW E46")
-                            : (lang === "id" ? "misalnya, Honda Beat" : "e.g., Honda Beat")
+                            ? (lang === "id" ? "BMW E46" : "BMW E46")
+                            : (lang === "id" ? "Honda Beat" : "Honda Beat")
                         }
                         value={vehicleModel}
                         onChange={(e) => setVehicleModel(e.target.value)}
@@ -2062,7 +2177,7 @@ export default function App() {
                       </label>
                       <input
                         type="number"
-                        placeholder={lang === "id" ? "misalnya, 15000" : "e.g., 15000"}
+                        placeholder={lang === "id" ? "15000" : "15000"}
                         value={onboardOdoInput || ""}
                         onChange={(e) => setOnboardOdoInput(e.target.value)}
                         className="w-full bg-[#1c1c1e] text-white py-4 px-6 rounded-3xl border border-slate-800 outline-none focus:border-slate-600 text-center text-xl font-bold placeholder-slate-600 transition-colors"
@@ -2397,21 +2512,23 @@ export default function App() {
                   {/* STATUS KENDARAAN SECTION */}
                   <div className="grid grid-cols-[1fr_7fr_2fr] items-stretch gap-3 relative z-10 w-full">
                     {/* Sisa Bar Bensin (Vertical without box) */}
-                    <div className="flex flex-col gap-1 shrink-0 justify-center items-center">
-                      <span className="text-[10px] font-bold text-slate-400 leading-none mb-[10px]">
+                    <div className="flex flex-col shrink-0 justify-center items-center">
+                      <span className="text-[10px] font-bold text-slate-400 leading-none mb-[14px]">
                         F
                       </span>
-                      {Array.from({ length: maxBars }).map((_, i) => {
-                        const barIdx = maxBars - 1 - i;
-                        const isFilled = barIdx < activeBar;
-                        return (
-                          <div
-                            key={barIdx}
-                            className={`w-4 h-2.5 sm:w-5 sm:h-3 rounded-[2px] transition-all duration-500 ${isFilled ? fuelColorConfig.bg + " " : "bg-slate-200/50"}`}
-                          />
-                        );
-                      })}
-                      <span className="text-[10px] font-bold text-slate-400 leading-none mt-[10px]">
+                      <div className="flex flex-col gap-1 w-4 sm:w-5 h-[94px] sm:h-[108px]">
+                        {Array.from({ length: maxBars }).map((_, i) => {
+                          const barIdx = maxBars - 1 - i;
+                          const isFilled = barIdx < activeBar;
+                          return (
+                            <div
+                              key={barIdx}
+                              className={`w-full flex-1 rounded-[2px] transition-all duration-500 ${isFilled ? fuelColorConfig.bg + " " : "bg-slate-200/50"}`}
+                            />
+                          );
+                        })}
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-400 leading-none mt-[14px]">
                         E
                       </span>
                     </div>
@@ -2590,7 +2707,7 @@ export default function App() {
                             : "border-t border-l border-r border-transparent text-slate-400 hover:text-slate-700"
                         }`}
                       >
-                        {lang === "id" ? "Liter" : "Vol"}
+                        {lang === "id" ? (volUnit === "gallon" ? "Galon" : "Liter") : (volUnit === "gallon" ? "Gallon" : "Vol")}
                       </button>
                       <button
                         id="purchase-tab-btn-slider"
@@ -2658,7 +2775,7 @@ export default function App() {
                       {purchaseTab === "manualPrice" && (
                         <div className="flex flex-col gap-3 animate-fade-in">
                           <label className="text-xs font-bold uppercase text-slate-400 text-center block">
-                            {t.opsi_price} ({currency})
+                            {lang === "id" ? "MASUKKAN NOMINAL HARGA" : "ENTER PRICE AMOUNT"}
                           </label>
                           <div className="relative">
                             <input
@@ -2672,7 +2789,7 @@ export default function App() {
                           </div>
                           <div className="text-center">
                             <span className="text-xs text-slate-500 font-mono font-bold">
-                              = ±{" "}
+                              ={" "}
                               {formatNumber(
                                 parseFloat(typedPrice)
                                   ? parseFloat(typedPrice) / activeFuelPrice
@@ -2692,8 +2809,7 @@ export default function App() {
                             className="text-xs font-bold uppercase text-slate-400 text-center block"
                             id="litre-tab-header"
                           >
-                            {t.opsi_volume} (
-                            {volUnit === "gallon" ? "Gallons" : "Liters"})
+                            {lang === "id" ? `MASUKKAN NOMINAL ${volUnit === "gallon" ? "GALON" : "LITER"}` : "ENTER VOLUME AMOUNT"}
                           </label>
                           <input
                             type="number"
@@ -3205,7 +3321,7 @@ export default function App() {
                     const percent = part.lifespanKm > 0
                       ? Math.min(100, Math.max(0, Math.round((remain / part.lifespanKm) * 100)))
                       : 0;
-                    return percent < 40;
+                    return percent < 25;
                   });
 
                   if (needsAttention.length > 0) {
@@ -3411,11 +3527,19 @@ export default function App() {
                                   trackContent={
                                     <div className="absolute inset-0 flex justify-between items-center pl-[68px] pr-4 h-full">
                                       <div className="flex flex-col flex-1 min-w-0 pr-2 pt-[1px]">
-                                        <span className="text-white font-bold text-[15px] leading-tight truncate">
-                                          {p.name}
-                                        </span>
+                                        <div className="flex items-center gap-1.5 mb-[1px]">
+                                          <span className="text-white font-bold text-[15px] leading-tight truncate">
+                                            {p.name}
+                                          </span>
+                                          {p.merk && (
+                                            <span className="bg-white/20 px-1.5 py-0.5 rounded text-[10px] font-bold text-white uppercase tracking-wider truncate shrink-0 max-w-[80px]">
+                                              {p.merk}
+                                            </span>
+                                          )}
+                                        </div>
                                         <span className="text-white/80 text-[13px] font-medium capitalize truncate mt-[1px]">
                                           {p.statusText}
+                                          {p.notes && ` • ${p.notes}`}
                                         </span>
                                       </div>
                                       <span className="text-white font-mono text-[16px] font-bold tracking-tight shrink-0">
@@ -3647,91 +3771,95 @@ export default function App() {
                               </div>
                               <div className="flex flex-col gap-2">
                                 {day.items.map((item: any) => (
-                                  <div
+                                  <SwipeActionRow
                                     key={item.id}
-                                    className="bg-white border border-rose-100 hover:border-rose-200 rounded-2xl p-4 flex items-center justify-between transition-all w-full cursor-pointer"
-                                    onClick={() => {
+                                    onEdit={() => {
                                       if (item.type === "general") {
                                         openExpenseModal(item);
                                       } else {
-                                        openEditModal(item);
+                                        const log = history.find((h: any) => h.id === item.id);
+                                        if (log) openEditModal(log);
+                                      }
+                                    }}
+                                    onDelete={() => {
+                                      if (item.type === "general") {
+                                        deleteExpense(item.id);
+                                      } else {
+                                        if (confirm("Hapus log BBM ini?")) {
+                                          handleDeleteItem(item.id);
+                                        }
+                                      }
+                                    }}
+                                    onPress={() => {
+                                      if (item.type === "general") {
+                                        openExpenseModal(item);
+                                      } else {
+                                        const log = history.find((h: any) => h.id === item.id);
+                                        if (log) openEditModal(log);
                                       }
                                     }}
                                   >
-                                    <div className="flex items-center gap-3 w-full">
-                                      <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center shrink-0">
-                                        {item.type === "general" ? (
-                                          <TrendingDown className="w-5 h-5" />
-                                        ) : (
-                                          <Flame className="w-5 h-5" />
-                                        )}
-                                      </div>
-                                      <div className="flex-1 min-w-0">
-                                        <div className="text-sm font-bold text-slate-800">
-                                          {item.type === "general"
-                                            ? item.platform
-                                              ? `${item.platform} - ${item.notes || "Pengeluaran"}`
-                                              : item.notes || "Pengeluaran"
-                                            : item.fuelType}
-                                        </div>
-                                        <div className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">
+                                    <div className="bg-white border border-rose-100 hover:border-rose-200 rounded-2xl p-4 flex items-center justify-between transition-all w-full cursor-pointer">
+                                      <div className="flex items-center gap-3 w-full">
+                                        <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center shrink-0">
                                           {item.type === "general" ? (
-                                            <div className="flex flex-wrap gap-1">
-                                              {item.odometer > 0 ? (
-                                                <span>
-                                                  Odo: {item.odometer} Km
-                                                </span>
-                                              ) : null}
-                                              {item.distance > 0 ? (
-                                                <span>
-                                                  | Jarak: {item.distance} Km
-                                                </span>
-                                              ) : null}
-                                              {item.otherCost !== 0 &&
-                                              item.otherCost !== undefined ? (
-                                                <span>
-                                                  | Lain:{" "}
-                                                  {formatCurrency(
-                                                    item.otherCost || 0,
-                                                  )}
-                                                </span>
-                                              ) : null}
-                                            </div>
+                                            <TrendingDown className="w-5 h-5" />
                                           ) : (
-                                            `BBM ${formatNumber(item.volume, 2)} ${
-                                              volUnit === "gallon"
-                                                ? "Gal"
-                                                : "L"
-                                            }`
+                                            <Flame className="w-5 h-5" />
                                           )}
                                         </div>
-                                      </div>
-                                      <div className="flex items-center gap-3 shrink-0">
-                                        <div className="font-mono text-base font-bold text-rose-600">
-                                          {formatCurrency(
-                                            item.type === "general"
-                                              ? item.cost
-                                              : item.totalPrice,
-                                          )}
+                                        <div className="flex-1 min-w-0">
+                                          <div className="text-sm font-bold text-slate-800">
+                                            {item.type === "general"
+                                              ? item.platform
+                                                ? `${item.platform} - ${item.notes || "Pengeluaran"}`
+                                                : item.notes || "Pengeluaran"
+                                              : item.fuelType}
+                                          </div>
+                                          <div className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">
+                                            {item.type === "general" ? (
+                                              <div className="flex flex-wrap gap-1">
+                                                {item.odometer > 0 ? (
+                                                  <span>
+                                                    Odo: {item.odometer} Km
+                                                  </span>
+                                                ) : null}
+                                                {item.distance > 0 ? (
+                                                  <span>
+                                                    | Jarak: {item.distance} Km
+                                                  </span>
+                                                ) : null}
+                                                {item.otherCost !== 0 &&
+                                                item.otherCost !== undefined ? (
+                                                  <span>
+                                                    | Lain:{" "}
+                                                    {formatCurrency(
+                                                      item.otherCost || 0,
+                                                    )}
+                                                  </span>
+                                                ) : null}
+                                              </div>
+                                            ) : (
+                                              `BBM ${formatNumber(item.volume, 2)} ${
+                                                volUnit === "gallon"
+                                                  ? "Gal"
+                                                  : "L"
+                                              }`
+                                            )}
+                                          </div>
                                         </div>
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            if (confirm("Hapus transaksi ini?")) {
-                                              if (item.type === "general") {
-                                                deleteExpense(item.id);
-                                              } else {
-                                                handleDeleteItem(item.id);
-                                              }
-                                            }
-                                          }}
-                                          className="w-8 h-8 rounded-full bg-rose-50 hover:bg-rose-100 flex items-center justify-center text-rose-500 transition-colors shrink-0"
-                                        >
-                                          <Trash2 className="w-4 h-4" />
-                                        </button>
+                                        <div className="flex items-center gap-3 shrink-0">
+                                          <div className="font-mono text-base font-bold text-rose-600">
+                                            {formatCurrency(
+                                              item.type === "general"
+                                                ? item.cost
+                                                : item.totalPrice,
+                                            )}
+                                          </div>
+                                        </div>
                                       </div>
                                     </div>
-                                  </div>
+                                  </SwipeActionRow>
                                 ))}
                               </div>
                             </div>
@@ -3767,105 +3895,116 @@ export default function App() {
                                 {day.items.map((item: any, idx: number) => {
                                   if (item.type === "trip") {
                                     return (
-                                      <div
+                                      <SwipeActionRow
                                         key={item.id || idx}
-                                        className="bg-white border border-emerald-100 hover:border-emerald-200 rounded-2xl p-4 flex items-center justify-between transition-all w-full cursor-pointer"
-                                        onClick={() => {
+                                        onEdit={() => {
+                                          setSelectedTripForEdit(item);
+                                          setShowTripModal(true);
+                                        }}
+                                        onDelete={() => {
+                                          if (confirm("Hapus perjalanan ini?")) {
+                                            const updated = tripHistory.filter((t: any) => t.id !== item.id);
+                                            setTripHistory(updated);
+                                            localStorage.setItem("fc_trip_history", JSON.stringify(updated));
+                                          }
+                                        }}
+                                        onPress={() => {
                                           setSelectedTripForEdit(item);
                                           setShowTripModal(true);
                                         }}
                                       >
-                                        <div className="flex items-center gap-3">
-                                          <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center shrink-0">
-                                            <MapPinned className="w-5 h-5" />
-                                          </div>
-                                          <div>
-                                            <div className="text-sm font-bold text-slate-800">
-                                              {item.originName &&
-                                              item.destinationName
-                                                ? `${item.originName} - ${item.destinationName}`
-                                                : "Perjalanan"}
+                                        <div className="bg-white border border-emerald-100 hover:border-emerald-200 rounded-2xl p-4 flex items-center justify-between transition-all w-full cursor-pointer">
+                                          <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center shrink-0">
+                                              <MapPinned className="w-5 h-5" />
                                             </div>
-                                            <div className="text-[11px] font-bold tracking-wide text-slate-400 uppercase mt-0.5">
-                                              {`${item.distance?.toFixed(1)} km`}
+                                            <div>
+                                              <div className="text-sm font-bold text-slate-800">
+                                                {item.originName &&
+                                                item.destinationName
+                                                  ? `${item.originName} - ${item.destinationName}`
+                                                  : "Perjalanan"}
+                                              </div>
+                                              <div className="text-[11px] font-bold tracking-wide text-slate-400 uppercase mt-0.5">
+                                                {`${item.distance?.toFixed(1)} km`}
+                                              </div>
+                                            </div>
+                                          </div>
+                                          <div className="flex items-center gap-3 shrink-0">
+                                            <div className="font-mono text-sm font-bold text-emerald-600">
+                                              {item.estFuelUsed?.toFixed(2)} L
                                             </div>
                                           </div>
                                         </div>
-                                        <div className="flex items-center gap-3 shrink-0">
-                                          <div className="font-mono text-sm font-bold text-emerald-600">
-                                            {item.estFuelUsed?.toFixed(2)} L
-                                          </div>
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              if (confirm("Hapus perjalanan ini?")) {
-                                                const updated = tripHistory.filter((t: any) => t.id !== item.id);
-                                                setTripHistory(updated);
-                                                localStorage.setItem("fc_trip_history", JSON.stringify(updated));
-                                              }
-                                            }}
-                                            className="w-8 h-8 rounded-full bg-rose-50 hover:bg-rose-100 flex items-center justify-center text-rose-500 transition-colors shrink-0"
-                                          >
-                                            <Trash2 className="w-4 h-4" />
-                                          </button>
-                                        </div>
-                                      </div>
+                                      </SwipeActionRow>
                                     );
                                   }
 
                                   return (
-                                    <div
+                                    <SwipeActionRow
                                       key={item.id || idx}
-                                      className="bg-white border border-slate-100 hover:border-slate-200 rounded-2xl p-4 flex items-center justify-between transition-all w-full cursor-pointer"
-                                      onClick={() => {
+                                      onEdit={() => {
                                         if (item.type === "bbm") {
-                                          openEditModal(item);
+                                          const log = history.find((h: any) => h.id === item.id);
+                                          if (log) openEditModal(log);
+                                        } else if (item.type === "parts") {
+                                          const expense = expenseHistory.find((e: any) => e.id === item.id);
+                                          if (expense) openExpenseModal(expense);
+                                        }
+                                      }}
+                                      onDelete={() => {
+                                        if (item.type === "bbm") {
+                                          if (confirm("Hapus log BBM ini?")) {
+                                            handleDeleteItem(item.id);
+                                          }
+                                        } else if (item.type === "parts") {
+                                          if (confirm("Hapus pengeluaran ini?")) {
+                                            deleteExpense(item.id);
+                                          }
+                                        }
+                                      }}
+                                      onPress={() => {
+                                        if (item.type === "bbm") {
+                                          const log = history.find((h: any) => h.id === item.id);
+                                          if (log) openEditModal(log);
+                                        } else if (item.type === "parts") {
+                                          const expense = expenseHistory.find((e: any) => e.id === item.id);
+                                          if (expense) openExpenseModal(expense);
                                         }
                                       }}
                                     >
-                                      <div className="flex items-center gap-3 w-full">
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${item.type === "bbm" ? "bg-sky-50 text-sky-500" : "bg-orange-50 text-orange-500"}`}>
-                                          {item.type === "bbm" ? (
-                                            <Droplets className="w-5 h-5" />
-                                          ) : (
-                                            <Wrench className="w-5 h-5" />
-                                          )}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                          <div className="text-sm font-bold text-slate-800 truncate">
-                                            {item.type === "bbm"
-                                              ? "Isi BBM"
-                                              : "Servis " + item.name}
+                                      <div className="bg-white border border-slate-100 hover:border-slate-200 rounded-2xl p-4 flex items-center justify-between transition-all w-full cursor-pointer">
+                                        <div className="flex items-center gap-3 w-full">
+                                          <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${item.type === "bbm" ? "bg-sky-50 text-sky-500" : "bg-orange-50 text-orange-500"}`}>
+                                            {item.type === "bbm" ? (
+                                              <Droplets className="w-5 h-5" />
+                                            ) : (
+                                              <Wrench className="w-5 h-5" />
+                                            )}
                                           </div>
-                                          <div className="text-[11px] font-bold tracking-wide text-slate-400 uppercase mt-0.5">
-                                            {item.type === "bbm"
-                                              ? formatCurrency(item.price)
-                                              : formatCurrency(item.cost)}
-                                          </div>
-                                        </div>
-                                        <div className="flex items-center gap-3 shrink-0">
-                                          {item.type === "bbm" && (
-                                            <div className="font-mono text-sm font-bold text-sky-600">
-                                              +{formatNumber(item.volume, 2)}{" "}
-                                              {volUnit === "gallon" ? "G" : "L"}
+                                          <div className="flex-1 min-w-0">
+                                            <div className="text-sm font-bold text-slate-800 truncate">
+                                              {item.type === "bbm"
+                                                ? "Isi BBM"
+                                                : "Servis " + item.name}
                                             </div>
-                                          )}
-                                          {item.type === "bbm" && (
-                                            <button
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                if (confirm("Hapus catatan BBM ini?")) {
-                                                  handleDeleteItem(item.id);
-                                                }
-                                              }}
-                                              className="w-8 h-8 rounded-full bg-rose-50 hover:bg-rose-100 flex items-center justify-center text-rose-500 transition-colors shrink-0"
-                                            >
-                                              <Trash2 className="w-4 h-4" />
-                                            </button>
-                                          )}
+                                            <div className="text-[11px] font-bold tracking-wide text-slate-400 uppercase mt-0.5">
+                                              {item.type === "bbm"
+                                                ? formatCurrency(item.price)
+                                                : formatCurrency(item.cost)}
+                                            </div>
+                                          </div>
+                                          <div className="flex items-center gap-3 shrink-0">
+                                            {item.type === "bbm" && (
+                                              <div className="font-mono text-sm font-bold text-sky-600">
+                                                +{formatNumber(item.volume, 2)}{" "}
+                                                {volUnit === "gallon" ? "G" : "L"}
+                                              </div>
+                                            )}
+                                          </div>
                                         </div>
                                       </div>
-                                    </div>
+                                    </SwipeActionRow>
                                   );
                                 })}
                               </div>
@@ -3898,51 +4037,47 @@ export default function App() {
                                 </div>
                                 <div className="flex flex-col gap-2">
                                   {day.items.map((item: any) => (
-                                    <div
+                                    <SwipeActionRow
                                       key={item.id}
-                                      className="bg-white border border-emerald-100 hover:border-emerald-200 rounded-2xl p-4 flex items-center justify-between transition-all w-full cursor-pointer"
-                                      onClick={() => openIncomeModal(item)}
+                                      onEdit={() => openIncomeModal(item)}
+                                      onDelete={() => {
+                                        if (confirm("Hapus pendapatan ini?")) {
+                                          deleteIncome(item.id);
+                                        }
+                                      }}
+                                      onPress={() => openIncomeModal(item)}
                                     >
-                                      <div className="flex items-center gap-3 w-full">
-                                        <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center shrink-0">
-                                          <TrendingUp className="w-5 h-5" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                          <div className="text-sm font-bold text-slate-800">
-                                            {item.platform
-                                              ? item.platform
-                                              : "Pendapatan"}
+                                      <div className="bg-white border border-emerald-100 hover:border-emerald-200 rounded-2xl p-4 flex items-center justify-between transition-all w-full cursor-pointer">
+                                        <div className="flex items-center gap-3 w-full">
+                                          <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center shrink-0">
+                                            <TrendingUp className="w-5 h-5" />
                                           </div>
-                                          <div className="text-[11px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
-                                            {item.distance > 0
-                                              ? `${item.distance} km `
-                                              : ""}
-                                            {item.ratePerKm > 0
-                                              ? `@ ${formatCurrency(item.ratePerKm)}/km `
-                                              : ""}
-                                            {item.otherCost !== 0
-                                              ? `| Lain: ${formatCurrency(item.otherCost || 0)}`
-                                              : ""}
+                                          <div className="flex-1 min-w-0">
+                                            <div className="text-sm font-bold text-slate-800">
+                                              {item.platform
+                                                ? item.platform
+                                                : "Pendapatan"}
+                                            </div>
+                                            <div className="text-[11px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
+                                              {item.distance > 0
+                                                ? `${item.distance} km `
+                                                : ""}
+                                              {item.ratePerKm > 0
+                                                ? `@ ${formatCurrency(item.ratePerKm)}/km `
+                                                : ""}
+                                              {item.otherCost !== 0
+                                                ? `| Lain: ${formatCurrency(item.otherCost || 0)}`
+                                                : ""}
+                                            </div>
                                           </div>
-                                        </div>
-                                        <div className="flex items-center gap-3 shrink-0">
-                                          <div className="font-mono text-base font-bold text-emerald-600">
-                                            {formatCurrency(item.total)}
+                                          <div className="flex items-center gap-3 shrink-0">
+                                            <div className="font-mono text-base font-bold text-emerald-600">
+                                              {formatCurrency(item.total)}
+                                            </div>
                                           </div>
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              if (confirm("Hapus pendapatan ini?")) {
-                                                deleteIncome(item.id);
-                                              }
-                                            }}
-                                            className="w-8 h-8 rounded-full bg-rose-50 hover:bg-rose-100 flex items-center justify-center text-rose-500 transition-colors shrink-0"
-                                          >
-                                            <Trash2 className="w-4 h-4" />
-                                          </button>
                                         </div>
                                       </div>
-                                    </div>
+                                    </SwipeActionRow>
                                   ))}
                                 </div>
                               </div>
@@ -4550,7 +4685,7 @@ export default function App() {
                           <div className="flex gap-2">
                             <input
                               type="text"
-                              placeholder="e.g. Lalamove"
+                              placeholder="Lalamove"
                               value={newPlatformName}
                               onChange={(e) =>
                                 setNewPlatformName(e.target.value)
@@ -5004,6 +5139,19 @@ export default function App() {
                   </div>
 
                   <div className="bg-slate-50 border-t border-slate-100 p-4 flex gap-2.5">
+                    {editLogId && (
+                      <button
+                        onClick={() => {
+                          if (confirm("Hapus perjalanan ini?")) {
+                            handleDeleteItem(editLogId);
+                            setShowEditModal(false);
+                          }
+                        }}
+                        className="py-3 px-4 border border-rose-200 bg-rose-50 text-rose-600 text-xs font-bold rounded-xl transition-all hover:bg-rose-100 cursor-pointer text-center flex items-center justify-center shrink-0"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                     <button
                       onClick={() => setShowEditModal(false)}
                       className="flex-grow py-3 px-4 border border-slate-200 bg-white text-slate-700 text-xs font-bold rounded-xl transition-all hover:bg-slate-50 cursor-pointer text-center uppercase"
@@ -5060,7 +5208,7 @@ export default function App() {
                         type="number"
                         value={syncOdoInput}
                         onChange={(e) => setSyncOdoInput(e.target.value)}
-                        placeholder="e.g. 15400"
+                        placeholder="15400"
                         className="w-full bg-white border border-slate-200 text-slate-900 text-lg font-bold py-3 px-4 rounded-xl text-center outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
                       />
                     </div>
@@ -5167,10 +5315,36 @@ export default function App() {
                       </label>
                       <input
                         type="number"
-                        placeholder="Misal: 150000"
+                        placeholder="150000"
                         value={serviceActionCost}
                         onChange={(e) => setServiceActionCost(e.target.value)}
                         className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3.5 text-base font-bold text-slate-700 focus:outline-none focus:border-emerald-500 focus:bg-white transition-all placeholder:text-slate-300 placeholder:font-semibold appearance-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold tracking-widest text-slate-400 uppercase mb-2 block">
+                        Merk Baru (Opsional)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="NGK"
+                        value={serviceActionMerk}
+                        onChange={(e) => setServiceActionMerk(e.target.value)}
+                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3.5 text-base font-bold text-slate-700 focus:outline-none focus:border-emerald-500 focus:bg-white transition-all placeholder:text-slate-300 placeholder:font-semibold"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold tracking-widest text-slate-400 uppercase mb-2 block">
+                        Catatan (Opsional)
+                      </label>
+                      <textarea
+                        placeholder="Catatan tambahan..."
+                        value={serviceActionNotes}
+                        onChange={(e) => setServiceActionNotes(e.target.value)}
+                        rows={2}
+                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3.5 text-base font-bold text-slate-700 focus:outline-none focus:border-emerald-500 focus:bg-white transition-all placeholder:text-slate-300 placeholder:font-semibold resize-none"
                       />
                     </div>
                   </div>
@@ -5224,8 +5398,34 @@ export default function App() {
                         type="text"
                         value={partFormName}
                         onChange={(e) => setPartFormName(e.target.value)}
-                        placeholder="e.g. Busi"
+                        placeholder="Busi"
                         className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-bold text-slate-700 leading-tight">
+                        Merk:
+                      </label>
+                      <input
+                        type="text"
+                        value={partFormMerk}
+                        onChange={(e) => setPartFormMerk(e.target.value)}
+                        placeholder="NGK"
+                        className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-bold text-slate-700 leading-tight">
+                        Catatan:
+                      </label>
+                      <textarea
+                        value={partFormNotes}
+                        onChange={(e) => setPartFormNotes(e.target.value)}
+                        placeholder="Catatan tambahan (opsional)"
+                        rows={2}
+                        className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800 resize-none"
                       />
                     </div>
 
@@ -5237,7 +5437,7 @@ export default function App() {
                         type="number"
                         value={partFormLifespan}
                         onChange={(e) => setPartFormLifespan(e.target.value)}
-                        placeholder="e.g. 10000"
+                        placeholder="10000"
                         className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
                       />
                     </div>
@@ -5250,7 +5450,7 @@ export default function App() {
                         type="number"
                         value={partFormLastOdo}
                         onChange={(e) => setPartFormLastOdo(e.target.value)}
-                        placeholder="e.g. 15400"
+                        placeholder="15400"
                         className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
                       />
                     </div>
@@ -5694,6 +5894,7 @@ export default function App() {
                   >
                     {[...history]
                       .sort((a, b) => b.timestamp - a.timestamp)
+                      .slice(0, 5)
                       .map((log) => {
                         const dateObj = new Date(log.timestamp);
                         const dateStr = dateObj.toLocaleDateString(
@@ -5776,6 +5977,7 @@ export default function App() {
                   >
                     {[...spareParts]
                       .sort((a, b) => (b.lastDate || 0) - (a.lastDate || 0))
+                      .slice(0, 5)
                       .map((part) => {
                         const IconComp =
                           LucideIcons[part.icon] || LucideIcons.Wrench;
@@ -5789,8 +5991,15 @@ export default function App() {
                                 <IconComp className="w-5 h-5" />
                               </div>
                               <div>
-                                <div className="text-sm font-bold text-slate-800">
-                                  {part.name}
+                                <div className="flex items-center gap-1.5 mb-[1px]">
+                                  <div className="text-sm font-bold text-slate-800">
+                                    {part.name}
+                                  </div>
+                                  {part.merk && (
+                                    <span className="bg-slate-100 px-1.5 py-0.5 rounded text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate shrink-0 max-w-[80px]">
+                                      {part.merk}
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="text-[11px] font-bold tracking-wide text-slate-400 uppercase mt-0.5">
                                   {new Date(part.lastDate).toLocaleDateString(
@@ -5803,6 +6012,7 @@ export default function App() {
                                   )}{" "}
                                   • Odo {part.lastOdo.toLocaleString("id-ID")}{" "}
                                   km
+                                  {part.notes && ` • ${part.notes}`}
                                 </div>
                               </div>
                             </div>
@@ -5827,6 +6037,15 @@ export default function App() {
                 onClose={() => {
                   setShowTripModal(false);
                   setSelectedTripForEdit(null);
+                }}
+                onDelete={() => {
+                  if (selectedTripForEdit) {
+                    const updated = tripHistory.filter((t: any) => t.id !== selectedTripForEdit.id);
+                    setTripHistory(updated);
+                    localStorage.setItem("fc_trip_history", JSON.stringify(updated));
+                    setShowTripModal(false);
+                    setSelectedTripForEdit(null);
+                  }
                 }}
                 onSave={(data: any) => {
                   if (selectedTripForEdit) {
@@ -5903,7 +6122,7 @@ export default function App() {
                         type="number"
                         value={incomeRate}
                         onChange={(e) => handleIncomeRateChange(e.target.value)}
-                        placeholder="e.g. 5000"
+                        placeholder="5000"
                         className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
                       />
                     </div>
@@ -5918,7 +6137,7 @@ export default function App() {
                         onChange={(e) =>
                           handleIncomeDistanceChange(e.target.value)
                         }
-                        placeholder="e.g. 45"
+                        placeholder="45"
                         className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
                       />
                     </div>
@@ -5933,7 +6152,7 @@ export default function App() {
                         onChange={(e) =>
                           handleIncomeOtherCostChange(e.target.value)
                         }
-                        placeholder="e.g. 5000 / -5000"
+                        placeholder="5000 / -5000"
                         className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
                       />
                     </div>
@@ -5991,13 +6210,25 @@ export default function App() {
                         type="text"
                         value={incomeNotes}
                         onChange={(e) => setIncomeNotes(e.target.value)}
-                        placeholder="e.g. Trip to Jakarta"
+                        placeholder="Trip to Jakarta"
                         className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
                       />
                     </div>
                   </div>
 
                   <div className="bg-white border-t border-slate-100 p-4 flex gap-2.5">
+                    {selectedIncomeForEdit && (
+                      <button
+                        onClick={() => {
+                          if (confirm("Hapus pendapatan ini?")) {
+                            deleteIncome(selectedIncomeForEdit.id);
+                          }
+                        }}
+                        className="py-3 px-4 border border-rose-200 bg-rose-50 text-rose-600 text-xs font-bold rounded-xl transition-all hover:bg-rose-100 cursor-pointer text-center flex items-center justify-center shrink-0"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                     <button
                       onClick={() => setShowIncomeModal(false)}
                       className="flex-grow py-3 px-4 border border-slate-200 bg-white text-slate-700 text-xs font-bold rounded-xl transition-all hover:bg-slate-50 cursor-pointer text-center uppercase"
@@ -6044,7 +6275,7 @@ export default function App() {
                         type="number"
                         value={expenseOdo}
                         onChange={(e) => setExpenseOdo(e.target.value)}
-                        placeholder="e.g. 15000"
+                        placeholder="15000"
                         className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
                       />
                     </div>
@@ -6057,7 +6288,7 @@ export default function App() {
                         type="number"
                         value={expenseDistance}
                         onChange={(e) => setExpenseDistance(e.target.value)}
-                        placeholder="e.g. 50"
+                        placeholder="50"
                         className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
                       />
                     </div>
@@ -6070,7 +6301,7 @@ export default function App() {
                         type="number"
                         value={expenseOtherCost}
                         onChange={(e) => setExpenseOtherCost(e.target.value)}
-                        placeholder="e.g. 10000"
+                        placeholder="10000"
                         className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
                       />
                     </div>
@@ -6126,13 +6357,25 @@ export default function App() {
                         type="text"
                         value={expenseNotes}
                         onChange={(e) => setExpenseNotes(e.target.value)}
-                        placeholder="e.g. Cuci Motor"
+                        placeholder="Cuci Motor"
                         className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
                       />
                     </div>
                   </div>
 
                   <div className="bg-white border-t border-slate-100 p-4 flex gap-2.5">
+                    {selectedExpenseForEdit && (
+                      <button
+                        onClick={() => {
+                          if (confirm("Hapus pengeluaran ini?")) {
+                            deleteExpense(selectedExpenseForEdit.id);
+                          }
+                        }}
+                        className="py-3 px-4 border border-rose-200 bg-rose-50 text-rose-600 text-xs font-bold rounded-xl transition-all hover:bg-rose-100 cursor-pointer text-center flex items-center justify-center shrink-0"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                     <button
                       onClick={() => setShowExpenseModal(false)}
                       className="flex-grow py-3 px-4 border border-slate-200 bg-white text-slate-700 text-xs font-bold rounded-xl transition-all hover:bg-slate-50 cursor-pointer text-center uppercase"

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Compass, Calculator, Coins, MapPin } from "lucide-react";
 
-export function TripModal({ isOpen, onClose, onSave, dashboardEfficiency, activeFuelPrice, initialData }: any) {
+export function TripModal({ isOpen, onClose, onSave, onDelete, dashboardEfficiency, activeFuelPrice, initialData }: any) {
   const [origin, setOrigin] = useState(initialData?.originName || "");
   const [destination, setDestination] = useState(initialData?.destinationName || "");
   const [distance, setDistance] = useState<number | "">(initialData?.distance || "");
@@ -119,6 +119,18 @@ export function TripModal({ isOpen, onClose, onSave, dashboardEfficiency, active
         </div>
 
         <div className="p-4 bg-white border-t border-slate-100 flex gap-3">
+          {onDelete && initialData && (
+            <button
+              onClick={() => {
+                if (confirm("Hapus perjalanan ini?")) {
+                  onDelete();
+                }
+              }}
+              className="py-3 px-4 bg-rose-50 border border-rose-200 text-rose-600 rounded-xl hover:bg-rose-100 transition-colors flex items-center justify-center shrink-0"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+            </button>
+          )}
           <button
             onClick={onClose}
             className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors text-sm"
