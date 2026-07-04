@@ -1,0 +1,261 @@
+  3720	                      const tB = b.items[0]?.timestamp || b.fallbackTime;
+  3721	                      return tB - tA;
+  3722	                    },
+  3723	                  );
+  3724	                    <div className={`bg-white border border-slate-200 p-4 flex flex-col gap-4 overflow-y-auto max-h-[600px] scrollbar-hide pb-20 relative z-0 font-sans text-left ${
+  3725	                      historySubTab === "keuangan" ? "rounded-b-[20px] rounded-tl-[20px]" :
+  3726	                      "rounded-[20px]"
+  3727	                    }`}>
+  3728	                      <div className="text-[10px] sm:text-xs font-bold tracking-widest text-slate-400 capitalize text-center w-full relative z-20">
+  3729	                        {historyMode}
+  3730	                      </div>
+  3731	
+  3732	                      {/* KEUANGAN SECTION */}
+  3733	                      {historySubTab === "keuangan" &&
+  3734	                        (expList.length === 0 ? (
+  3735	                          <div className="bg-slate-50 border border-dashed border-slate-300 rounded-3xl p-10 text-center flex flex-col items-center justify-center gap-2">
+  3736	                            <h4 className="font-bold text-slate-700 text-sm">
+  3737	                              Belum ada transaksi
+  3738	                            </h4>
+  3739	                          </div>
+  3740	                        ) : (
+  3741	                          keuanganList.map((day: any) => (
+  3742	                            <div
+  3743	                              key={day.date}
+  3744	                              className="flex flex-col gap-2 animate-fade-in"
+  3745	                            >
+  3746	                              <div className="flex justify-between items-center px-1">
+  3747	                                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+  3748	                                  {formatDateDisplay(day.date)}
+  3749	                                </span>
+  3750	                                <div className="flex gap-2">
+  3751	                                  {day.totalCost > 0 && <span className="text-xs font-bold text-rose-600">
+  3752	                                    {formatCurrency(day.totalCost)}
+  3753	                                  </span>}
+  3754	                                  {day.totalInc > 0 && <span className="text-xs font-bold text-emerald-600">
+  3755	                                    {formatCurrency(day.totalInc)}
+  3756	                                  </span>}
+  3757	                                </div>
+  3758	                              </div>
+  3759	                              <div className="flex flex-col gap-2">
+  3760	                                {day.items.map((item: any) => (
+  3761	                                  <SwipeActionRow
+  3762	                                    key={item.id}
+  3763	                                    onEdit={() => {
+  3764	                                      if (item.type === "general") {
+  3765	                                        openExpenseModal(item);
+  3766	                                      } else if (item.type === "income") {
+  3767	                                        openIncomeModal(item);
+  3768	                                      }
+  3769	                                    }}
+  3770	                                    onDelete={() => {
+  3771	                                      if (item.type === "general") {
+  3772	                                        deleteExpense(item.id);
+  3773	                                      } else if (item.type === "income") {
+  3774	                                        if (confirm("Hapus pendapatan ini?")) {
+  3775	                                          deleteIncome(item.id);
+  3776	                                        }
+  3777	                                      }
+  3778	                                    }}
+  3779	                                    onPress={() => {
+  3780	                                      if (item.type === "general") {
+  3781	                                        openExpenseModal(item);
+  3782	                                      } else if (item.type === "income") {
+  3783	                                        openIncomeModal(item);
+  3784	                                      }
+  3785	                                    }}
+  3786	                                  >
+  3787	                                    <div className={`bg-white border rounded-2xl p-4 flex items-center justify-between transition-all w-full cursor-pointer ${item.type === 'income' ? 'border-emerald-100 hover:border-emerald-200' : 'border-rose-100 hover:border-rose-200'}`}>
+  3788	                                      <div className="flex items-center gap-3 w-full">
+  3789	                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${item.type === 'income' ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'}`}>
+  3790	                                          {item.type === "general" ? (
+  3791	                                            <TrendingDown className="w-5 h-5" />
+  3792	                                          ) : (
+  3793	                                            <TrendingUp className="w-5 h-5" />
+  3794	                                          )}
+  3795	                                        </div>
+  3796	                                        <div className="flex-1 min-w-0">
+  3797	                                          <div className="text-sm font-bold text-slate-800">
+  3798	                                            {item.type === "general"
+  3799	                                              ? item.platform
+  3800	                                                ? `${item.platform} - ${item.notes || "Pengeluaran"}`
+  3801	                                                : item.notes || "Pengeluaran"
+  3802	                                              : item.platform || "Pendapatan"}
+  3803	                                          </div>
+  3804	                                          <div className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">
+  3805	                                            {item.type === "general" ? (
+  3806	                                              <div className="flex flex-wrap gap-1">
+  3807	                                                {item.odometer > 0 ? (
+  3808	                                                  <span>
+  3809	                                                    Odo: {item.odometer} Km
+  3810	                                                  </span>
+  3811	                                                ) : null}
+  3812	                                                {item.distance > 0 ? (
+  3813	                                                  <span>
+  3814	                                                    | Jarak: {item.distance} Km
+  3815	                                                  </span>
+  3816	                                                ) : null}
+  3817	                                                {item.otherCost !== 0 &&
+  3818	                                                item.otherCost !== undefined ? (
+  3819	                                                  <span>
+  3820	                                                    | Lain:{" "}
+  3821	                                                    {formatCurrency(
+  3822	                                                      item.otherCost || 0,
+  3823	                                                    )}
+  3824	                                                  </span>
+  3825	                                                ) : null}
+  3826	                                              </div>
+  3827	                                            ) : (
+  3828	                                              <div className="flex flex-wrap gap-1">
+  3829	                                                {item.distance > 0
+  3830	                                                ? `${item.distance} km `
+  3831	                                                : ""}
+  3832	                                                {item.ratePerKm > 0
+  3833	                                                  ? `@ ${formatCurrency(item.ratePerKm)}/km `
+  3834	                                                  : ""}
+  3835	                                                {item.otherCost !== 0
+  3836	                                                  ? `| Lain: ${formatCurrency(item.otherCost || 0)}`
+  3837	                                                  : ""}
+  3838	                                              </div>
+  3839	                                            )}
+  3840	                                          </div>
+  3841	                                        </div>
+  3842	                                        <div className="flex items-center gap-3 shrink-0">
+  3843	                                          <div className={`font-mono text-base font-bold ${item.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
+  3844	                                            {formatCurrency(
+  3845	                                              item.type === "general"
+  3846	                                                ? item.cost
+  3847	                                                : item.total,
+  3848	                                            )}
+  3849	                                          </div>
+  3850	                                        </div>
+  3851	                                      </div>
+  3852	                                    </div>
+  3853	                                  </SwipeActionRow>
+  3854	                                ))}
+  3855	                              </div>
+  3856	                            </div>
+  3857	                          ))
+  3858	                        ))}
+  3859	
+  3860	                      {/* AKTIVITAS SECTION */}
+  3861	                      {historySubTab === "aktivitas" &&
+  3862	                        (riwayatList.length === 0 ? (
+  3863	                          <div className="bg-slate-50 border border-dashed border-slate-300 rounded-3xl p-10 text-center flex flex-col items-center justify-center gap-2">
+  3864	                            <h4 className="font-bold text-slate-700 text-sm">
+  3865	                              Belum ada aktivitas
+  3866	                            </h4>
+  3867	                          </div>
+  3868	                        ) : (
+  3869	                          riwayatList.map((day: any) => (
+  3870	                            <div key={day.date} className="flex flex-col gap-2 animate-fade-in">
+  3871	                              <div className="flex justify-between items-center px-1">
+  3872	                                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+  3873	                                  {formatDateDisplay(day.date)}
+  3874	                                </span>
+  3875	                              </div>
+  3876	                              <div className="flex flex-col gap-2">
+  3877	                                {day.items.map((item: any, idx: number) => {
+  3878	                                  if (item.type === "trip") {
+  3879	                                    return (
+  3880	                                      <SwipeActionRow
+  3881	                                        key={item.id || idx}
+  3882	                                        onEdit={() => { setSelectedTripForEdit(item); setShowTripModal(true); }}
+  3883	                                        onDelete={() => {
+  3884	                                          if (confirm("Hapus perjalanan ini?")) {
+  3885	                                            const updated = tripHistory.filter((t: any) => t.id !== item.id);
+  3886	                                            setTripHistory(updated);
+  3887	                                            localStorage.setItem("fc_trip_history", JSON.stringify(updated));
+  3888	                                          }
+  3889	                                        }}
+  3890	                                        onPress={() => { setSelectedTripForEdit(item); setShowTripModal(true); }}
+  3891	                                      >
+  3892	                                        <div className="bg-white border border-emerald-100 hover:border-emerald-200 rounded-2xl p-4 flex items-center justify-between transition-all w-full cursor-pointer">
+  3893	                                          <div className="flex items-center gap-3 w-full">
+  3894	                                            <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center shrink-0">
+  3895	                                              <MapPinned className="w-5 h-5" />
+  3896	                                            </div>
+  3897	                                            <div className="flex-1 min-w-0">
+  3898	                                              <div className="text-sm font-bold text-slate-800 truncate">
+  3899	                                                {item.originName && item.destinationName ? `${item.originName} - ${item.destinationName}` : "Perjalanan"}
+  3900	                                              </div>
+  3901	                                              <div className="text-[11px] font-bold tracking-wide text-slate-400 uppercase mt-0.5">
+  3902	                                                {item.distance?.toFixed(1)} km
+  3903	                                              </div>
+  3904	                                            </div>
+  3905	                                          </div>
+  3906	                                        </div>
+  3907	                                      </SwipeActionRow>
+  3908	                                    );
+  3909	                                  }
+  3910	                                  return (
+  3911	                                    <SwipeActionRow
+  3912	                                      key={item.id || idx}
+  3913	                                      onEdit={() => {
+  3914	                                        if (item.type === "bbm") {
+  3915	                                          const log = history.find((h: any) => h.id === item.id);
+  3916	                                          if (log) openEditModal(log);
+  3917	                                        } else if (item.type === "parts") {
+  3918	                                          const expense = expenseHistory.find((e: any) => e.id === item.id);
+  3919	                                          if (expense) openExpenseModal(expense);
+  3920	                                        }
+  3921	                                      }}
+  3922	                                      onDelete={() => {
+  3923	                                        if (item.type === "bbm") {
+  3924	                                          if (confirm("Hapus log BBM ini?")) { handleDeleteItem(item.id); }
+  3925	                                        } else if (item.type === "parts") {
+  3926	                                          if (confirm("Hapus pengeluaran ini?")) { deleteExpense(item.id); }
+  3927	                                        }
+  3928	                                      }}
+  3929	                                      onPress={() => {
+  3930	                                        if (item.type === "bbm") {
+  3931	                                          const log = history.find((h: any) => h.id === item.id);
+  3932	                                          if (log) openEditModal(log);
+  3933	                                        } else if (item.type === "parts") {
+  3934	                                          const expense = expenseHistory.find((e: any) => e.id === item.id);
+  3935	                                          if (expense) openExpenseModal(expense);
+  3936	                                        }
+  3937	                                      }}
+  3938	                                    >
+  3939	                                      <div className="bg-white border border-slate-100 hover:border-slate-200 rounded-2xl p-4 flex items-center justify-between transition-all w-full cursor-pointer">
+  3940	                                        <div className="flex items-center gap-3 w-full">
+  3941	                                          <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${item.type === "bbm" ? "bg-sky-50 text-sky-500" : "bg-orange-50 text-orange-500"}`}>
+  3942	                                            {item.type === "bbm" ? <Droplets className="w-5 h-5" /> : <Wrench className="w-5 h-5" />}
+  3943	                                          </div>
+  3944	                                          <div className="flex-1 min-w-0">
+  3945	                                            <div className="text-sm font-bold text-slate-800 truncate">
+  3946	                                              {item.type === "bbm" ? "Isi BBM" : "Servis " + item.name}
+  3947	                                            </div>
+  3948	                                            <div className="text-[11px] font-bold tracking-wide text-slate-400 uppercase mt-0.5">
+  3949	                                              {item.type === "bbm" ? formatCurrency(item.price) : formatCurrency(item.cost)}
+  3950	                                            </div>
+  3951	                                          </div>
+  3952	                                          <div className="flex items-center gap-3 shrink-0">
+  3953	                                            {item.type === "bbm" && (
+  3954	                                              <div className="font-mono text-sm font-bold text-sky-600">
+  3955	                                                +{formatNumber(item.volume, 2)} {volUnit === "gallon" ? "G" : "L"}
+  3956	                                              </div>
+  3957	                                            )}
+  3958	                                          </div>
+  3959	                                        </div>
+  3960	                                      </div>
+  3961	                                    </SwipeActionRow>
+  3962	                                  );
+  3963	                                })}
+  3964	                              </div>
+  3965	                            </div>
+  3966	                          ))
+  3967	                        ))}
+  3968	                    </div>
+  3969	                  );
+  3970	                })()}
+  3971	                </div>
+  3972	                {/* END OF HISTORY PORTION */}
+  3973	              </div>
+  3974	            )}
+  3975	
+  3976	            {/* TAB 4: APP & VEHICLE INITIALIZATION SETTINGS VIEW */}
+  3977	            {/* TAB 4: MAP / SPBU LOCATOR */}
+  3978	            {activeTab === "map" && (
+  3979	              <div className="px-4 py-5 flex flex-col gap-4 animate-fade-in flex-grow">
+  3980	                <div className="w-full bg-slate-200 rounded-2xl overflow-hidden border border-slate-300 relative flex-grow min-h-[350px]">

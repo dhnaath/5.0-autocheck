@@ -365,6 +365,7 @@ const SwipeActionRow = ({
   onEdit: () => void;
   onDelete: () => void;
   onPress?: () => void;
+  key?: React.Key;
 }) => {
   const [offset, setOffset] = useState(0);
   const startX = React.useRef(0);
@@ -739,7 +740,7 @@ export default function App() {
 
   const [maxBars, setMaxBars] = useState<number>(() => {
     const saved = localStorage.getItem("fc_max_bars");
-    return saved ? parseInt(saved, 10) : 7;
+    return saved ? parseInt(saved, 10) : 10;
   });
 
   const [dashboardEfficiency, setDashboardEfficiency] = useState<number>(() => {
@@ -884,8 +885,8 @@ export default function App() {
   const [tripNotesVal, setTripNotesVal] = useState<string>("");
 
   const [historySubTab, setHistorySubTab] = useState<
-    "pengeluaran" | "riwayat" | "pendapatan"
-  >("riwayat");
+    "aktivitas" | "keuangan"
+  >("aktivitas");
   const [dashboardSubTab, setDashboardSubTab] = useState<
     "keuangan" | "pengeluaran" | "pendapatan"
   >("keuangan");
@@ -905,6 +906,8 @@ export default function App() {
   const [showPartsGroupingMenu, setShowPartsGroupingMenu] =
     useState<boolean>(false);
   const [showPartsHistoryModal, setShowPartsHistoryModal] =
+    useState<boolean>(false);
+  const [showDashboardHistoryModal, setShowDashboardHistoryModal] =
     useState<boolean>(false);
   const [showFuelHistoryModal, setShowFuelHistoryModal] =
     useState<boolean>(false);
@@ -1002,6 +1005,7 @@ export default function App() {
 
   // Dynamic localization formatters
   const formatCurrency = (val: number) => {
+    if (isNaN(val) || !isFinite(val)) val = 0;
     const formattedVal = Math.round(val).toLocaleString(
       separator === "dot" ? "id-ID" : "en-US",
       {
@@ -1013,6 +1017,7 @@ export default function App() {
   };
 
   const formatVolume = (val: number) => {
+    if (isNaN(val) || !isFinite(val)) val = 0;
     const formatted = val.toLocaleString(
       separator === "dot" ? "id-ID" : "en-US",
       {
@@ -1024,6 +1029,7 @@ export default function App() {
   };
 
   const formatNumber = (val: number, decimals = 0) => {
+    if (isNaN(val) || !isFinite(val)) val = 0;
     return val.toLocaleString(separator === "dot" ? "id-ID" : "en-US", {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals,
@@ -1255,23 +1261,41 @@ export default function App() {
   ]);
 
   // Trip Calculator active estimations
+  const [tripCalcMode, setTripCalcMode] = useState<"distance" | "volume">("distance");
   const [tripDistanceVal, setTripDistanceVal] = useState<string>("");
+  const [tripVolumeVal, setTripVolumeVal] = useState<string>("");
   const tripCalcDetails = useMemo(() => {
-    const distance = parseFloat(tripDistanceVal) || 0;
-    if (distance <= 0) return null;
     const minEff = dashboardEfficiency + 2;
     const maxEff = Math.max(5, dashboardEfficiency - 2);
-    const minVolumeRequired = distance / minEff;
-    const maxVolumeRequired = distance / maxEff;
-    const minCostRange = minVolumeRequired * activeFuelPrice;
-    const maxCostRange = maxVolumeRequired * activeFuelPrice;
-    return {
-      minVolumeRequired,
-      maxVolumeRequired,
-      minCostRange,
-      maxCostRange,
-    };
-  }, [tripDistanceVal, dashboardEfficiency, activeFuelPrice]);
+
+    if (tripCalcMode === "distance") {
+      const distance = parseFloat(tripDistanceVal) || 0;
+      if (distance <= 0) return null;
+      const minVolumeRequired = distance / minEff;
+      const maxVolumeRequired = distance / maxEff;
+      const minCostRange = minVolumeRequired * activeFuelPrice;
+      const maxCostRange = maxVolumeRequired * activeFuelPrice;
+      return {
+        type: "distance",
+        minVolumeRequired,
+        maxVolumeRequired,
+        minCostRange,
+        maxCostRange,
+      };
+    } else {
+      const volume = parseFloat(tripVolumeVal) || 0;
+      if (volume <= 0) return null;
+      const minDistanceRange = volume * maxEff;
+      const maxDistanceRange = volume * minEff;
+      const exactCost = volume * activeFuelPrice;
+      return {
+        type: "volume",
+        minDistanceRange,
+        maxDistanceRange,
+        exactCost,
+      };
+    }
+  }, [tripCalcMode, tripDistanceVal, tripVolumeVal, dashboardEfficiency, activeFuelPrice]);
 
   // --- Parts Handlers ---
   const openServiceActionModal = (partId: string) => {
@@ -1914,7 +1938,7 @@ export default function App() {
       setNominalButtons(DEFAULT_PRESETS);
       setHistory([]);
       setTankCapacity(4.2);
-      setMaxBars(7);
+      setMaxBars(10);
       setDashboardEfficiency(45);
       setTotalLiterMasukInternal(0);
       setTotalLompatanBarInternal(0);
@@ -2249,7 +2273,7 @@ export default function App() {
                         onClick={() => setShowFuelHistoryModal(true)}
                         className="w-10 h-10 flex items-center justify-center bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all text-slate-500 hover:text-slate-700 "
                       >
-                        <LucideIcons.History className="w-5 h-5" />
+                        <HistoryIcon className="w-5 h-5" />
                       </button>
                       <button
                         onClick={() => setShowFuelSettingsModal(true)}
@@ -2277,7 +2301,7 @@ export default function App() {
                         onClick={() => setShowPartsHistoryModal(true)}
                         className="w-10 h-10 flex items-center justify-center bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all text-slate-500 hover:text-slate-700 "
                       >
-                        <LucideIcons.History className="w-5 h-5" />
+                        <HistoryIcon className="w-5 h-5" />
                       </button>
                       <div className="relative">
                         <button
@@ -2304,7 +2328,7 @@ export default function App() {
                                 }}
                                 className={`w-full text-left px-4 py-3 text-sm font-bold transition-colors ${partsGrouping === "kategori" ? "text-indigo-600 bg-indigo-50" : "text-slate-600 hover:bg-slate-50"}`}
                               >
-                                Kategori
+                                Kategori Bagian
                               </button>
                               <button
                                 onClick={() => {
@@ -2330,17 +2354,17 @@ export default function App() {
                     </h2>
                     <div className="flex gap-2 items-center">
                       <button
-                        onClick={() => setActiveTab("history")}
+                        onClick={() => setShowDashboardHistoryModal(true)}
                         className="w-10 h-10 flex items-center justify-center bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all text-slate-500 hover:text-slate-700 "
                       >
-                        <LucideIcons.History className="w-5 h-5" />
+                        <LucideIcons.Archive className="w-5 h-5" />
                       </button>
                       <div className="relative">
                         <button
                           onClick={() => setShowDashboardMenu(!showDashboardMenu)}
                           className="w-10 h-10 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors flex items-center justify-center bg-white active:scale-95"
                         >
-                          <MoreHorizontal className="w-5 h-5 text-slate-500" />
+                          <ListFilter className="w-5 h-5 text-slate-500" />
                         </button>
                         <AnimatePresence>
                           {showDashboardMenu && (
@@ -2378,9 +2402,7 @@ export default function App() {
                 {activeTab === "history" && (
                   <div className="flex items-center justify-between w-full animate-fade-in">
                     <h2 className="text-[22px] font-bold tracking-tight font-sans text-[#0f172b] flex items-center justify-start gap-[15px]">
-                      <MapPinned className="w-6 h-6 sm:w-7 sm:h-7 stroke-[2.5px] text-[#0f172b]" />
-                      Aktivitas
-                    </h2>
+                      <HistoryIcon className="w-6 h-6 sm:w-7 sm:h-7 stroke-[2.5px] text-[#0f172b]" /> Riwayat </h2>
                     <div className="flex gap-2 items-center">
                       <div className="relative">
                         <button
@@ -2436,7 +2458,7 @@ export default function App() {
                           onClick={() => setShowHistoryMenu(!showHistoryMenu)}
                           className="w-10 h-10 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors flex items-center justify-center bg-white active:scale-95"
                         >
-                          <MoreHorizontal className="w-5 h-5 text-slate-500" />
+                          <ListFilter className="w-5 h-5 text-slate-500" />
                         </button>
                         <AnimatePresence>
                           {showHistoryMenu && (
@@ -2504,7 +2526,7 @@ export default function App() {
               </div>
 
               {/* APPLICATION MAIN CONTENT AREA */}
-              <div className="flex-grow flex flex-col overflow-y-auto scrollbar-hide pb-[120px]">
+              <div className="flex-grow flex flex-col overflow-y-auto scrollbar-hide pb-0">
             {/* TAB 1: FUEL VIEW */}
             {activeTab === "fuel" && (
               <div className="px-4 flex flex-col gap-5 animate-fade-in relative z-10 pt-4 pb-8">
@@ -2556,7 +2578,7 @@ export default function App() {
                       />
 
                       <div className="flex flex-col items-center w-full z-10 -mt-[1px]">
-                        <span className={`text-[10px] font-bold uppercase transition-colors duration-500 ${activeBar / maxBars >= 0.75 ? "text-white/80" : "text-slate-500"}`}>
+                        <span className={`text-[10px] font-bold uppercase transition-colors duration-500 ${activeBar / maxBars >= 0.75 ? "text-white" : "text-slate-900"}`}>
                           Full
                         </span>
                         <span className={`text-lg font-bold font-mono leading-tight mt-[10px] transition-colors duration-500 ${activeBar / maxBars >= 0.75 ? "text-white" : "text-slate-900"}`}>
@@ -2567,12 +2589,12 @@ export default function App() {
                       </div>
 
                       <div className="flex flex-col items-center w-full z-10 -mb-[1px]">
-                        <span className={`text-lg font-bold font-mono leading-tight mb-[10px] transition-colors duration-500 ${activeBar / maxBars >= 0.25 ? "text-white" : "text-slate-400"}`}>
+                        <span className={`text-lg font-bold font-mono leading-tight mb-[10px] transition-colors duration-500 ${activeBar / maxBars >= 0.25 ? "text-white" : "text-slate-900"}`}>
                           {(((maxBars - activeBar) / maxBars) * tankCapacity)
                             .toFixed(1)
                             .replace(".", ",")}
                         </span>
-                        <span className={`text-[10px] font-bold uppercase transition-colors duration-500 ${activeBar / maxBars >= 0.25 ? "text-white/80" : "text-slate-400"}`}>
+                        <span className={`text-[10px] font-bold uppercase transition-colors duration-500 ${activeBar / maxBars >= 0.25 ? "text-white" : "text-slate-900"}`}>
                           Empty
                         </span>
                       </div>
@@ -2747,7 +2769,7 @@ export default function App() {
                                 onClick={() => setNominalSelected(nominal)}
                                 className={`p-3 border rounded-xl flex flex-col items-center justify-center text-center transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
                                   isPicked
-                                    ? "bg-slate-900 border-slate-950 text-white "
+                                    ? `${fuelColorConfig.bg} border-transparent text-white shadow-sm`
                                     : "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-800"
                                 }`}
                               >
@@ -2760,7 +2782,7 @@ export default function App() {
                                   )}
                                 </span>
                                 <span
-                                  className={`text-xs font-mono font-medium ${isPicked ? "text-slate-300" : "text-slate-500"}`}
+                                  className={`text-xs font-mono font-medium ${isPicked ? "text-white/90" : "text-slate-500"}`}
                                 >
                                   ± {formatNumber(equivalentVolume, 2)}{" "}
                                   {volUnit === "gallon" ? "Gal" : "L"}
@@ -2796,7 +2818,7 @@ export default function App() {
                                   : 0,
                                 2,
                               )}{" "}
-                              {volUnit === "gallon" ? "Gallons" : "Liters"}
+                              {volUnit === "gallon" ? "Gallon" : "Liter"}
                             </span>
                           </div>
                         </div>
@@ -2847,14 +2869,14 @@ export default function App() {
                               id="precision-slider-input-element"
                               min="0"
                               max={sliderMaxVal}
-                              step={lang === "id" ? 500 : 1}
+                              step={activeFuelPrice * 0.01}
                               value={precisionSliderValue}
                               onChange={(e) =>
                                 setPrecisionSliderValue(
                                   parseFloat(e.target.value),
                                 )
                               }
-                              className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-slate-900 border border-slate-200 outline-none"
+                              className="w-full h-4 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-slate-900 border border-slate-200 outline-none"
                             />
                             <div className="flex justify-between items-center bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
                               <span className="font-mono text-sm font-bold text-slate-800">
@@ -3317,11 +3339,11 @@ export default function App() {
                 {(() => {
                   const needsAttention = spareParts.filter((part) => {
                     const kmPassed = (lastLoggedOdometer || 0) - part.lastOdo;
-                    const remain = Math.max(0, part.lifespanKm - kmPassed);
+                    const remain = part.lifespanKm - kmPassed;
                     const percent = part.lifespanKm > 0
-                      ? Math.min(100, Math.max(0, Math.round((remain / part.lifespanKm) * 100)))
+                      ? Math.min(100, Math.round((remain / part.lifespanKm) * 100))
                       : 0;
-                    return percent < 25;
+                    return percent <= 20;
                   });
 
                   if (needsAttention.length > 0) {
@@ -3330,16 +3352,13 @@ export default function App() {
                         {needsAttention.slice(0, 3).map((part) => {
                           const kmPassed =
                             (lastLoggedOdometer || 0) - part.lastOdo;
-                          const remain = Math.max(
-                            0,
-                            part.lifespanKm - kmPassed,
-                          );
+                          const remain = part.lifespanKm - kmPassed;
                           const percent = part.lifespanKm > 0
-                            ? Math.min(100, Math.max(0, Math.round((remain / part.lifespanKm) * 100)))
+                            ? Math.min(100, Math.round((remain / part.lifespanKm) * 100))
                             : 0;
                           
-                          const isDanger = percent < 15;
-                          const isWarning = percent >= 15 && percent < 25;
+                          const isDanger = percent < 5;
+                          const isWarning = percent >= 5 && percent <= 20;
 
                           const cardStyle = isDanger
                             ? "bg-red-50 text-red-600 border-red-100"
@@ -3397,17 +3416,17 @@ export default function App() {
                   {(() => {
                     const processedParts = spareParts.map((part) => {
                       const kmPassed = (lastLoggedOdometer || 0) - part.lastOdo;
-                      const remain = Math.max(0, part.lifespanKm - kmPassed);
+                      const remain = part.lifespanKm - kmPassed;
                       const estimatedDays = Math.ceil(remain / 20);
 
                       const percent = part.lifespanKm > 0
-                        ? Math.min(100, Math.max(0, Math.round((remain / part.lifespanKm) * 100)))
+                        ? Math.min(100, Math.round((remain / part.lifespanKm) * 100))
                         : 0;
 
-                      const isBahaya = percent < 15;
-                      const isServis = percent >= 15 && percent < 25;
-                      const isPeriksa = percent >= 25 && percent < 40;
-                      const isAman = percent >= 40;
+                      const isBahaya = percent < 5;
+                      const isServis = percent >= 5 && percent <= 20;
+                      const isPeriksa = percent > 20 && percent <= 35;
+                      const isAman = percent > 35;
 
                       const statusVal = isBahaya
                         ? 1
@@ -3440,6 +3459,7 @@ export default function App() {
                         isServis,
                         isPeriksa,
                         isAman,
+                        percent,
                         statusVal,
                         statusText,
                         statusColor,
@@ -3502,56 +3522,69 @@ export default function App() {
                             <div className="h-px bg-slate-200 flex-1"></div>
                           </div>
                         )}
-                        {group.parts.map((p, idx) => {
-                          const IconComp =
-                            LucideIcons[p.icon] || LucideIcons.Wrench;
+                        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                          {group.parts.map((p, idx) => {
+                            const isCompact = partsGrouping === "status" && (p.isPeriksa || p.isAman);
+                            const IconComp =
+                              LucideIcons[p.icon] || LucideIcons.Wrench;
 
-                          return (
-                            <div
-                              key={p.id}
-                              className="relative flex gap-2 items-center w-full group animate-fade-in"
-                            >
-                              <div className="flex-[1_1_0%] min-w-0 relative">
-                                <SlideToConfirm
-                                  onConfirm={() => openServiceActionModal(p.id)}
-                                  colorClass={p.bgClass}
-                                  slideIcon={
-                                    <div className="relative flex items-center justify-center">
-                                      <IconComp
-                                        className={`w-6 h-6 ${p.statusColor}`}
-                                        strokeWidth={2}
-                                      />
-                                    </div>
-                                  }
-                                  onClickTrack={() => openEditPart(p)}
-                                  trackContent={
-                                    <div className="absolute inset-0 flex justify-between items-center pl-[68px] pr-4 h-full">
-                                      <div className="flex flex-col flex-1 min-w-0 pr-2 pt-[1px]">
-                                        <div className="flex items-center gap-1.5 mb-[1px]">
-                                          <span className="text-white font-bold text-[15px] leading-tight truncate">
-                                            {p.name}
-                                          </span>
-                                          {p.merk && (
-                                            <span className="bg-white/20 px-1.5 py-0.5 rounded text-[10px] font-bold text-white uppercase tracking-wider truncate shrink-0 max-w-[80px]">
-                                              {p.merk}
-                                            </span>
-                                          )}
-                                        </div>
-                                        <span className="text-white/80 text-[13px] font-medium capitalize truncate mt-[1px]">
-                                          {p.statusText}
-                                          {p.notes && ` • ${p.notes}`}
-                                        </span>
+                            return (
+                              <div
+                                key={p.id}
+                                className={`relative flex items-center group animate-fade-in ${isCompact ? "col-span-1" : "col-span-3"}`}
+                              >
+                                <div className="flex-[1_1_0%] min-w-0 relative">
+                                  <SlideToConfirm
+                                    onConfirm={() => openServiceActionModal(p.id)}
+                                    colorClass={p.bgClass}
+                                    slideIcon={
+                                      <div className="relative flex items-center justify-center">
+                                        <IconComp
+                                          className={`w-6 h-6 ${p.statusColor}`}
+                                          strokeWidth={2}
+                                        />
                                       </div>
-                                      <span className="text-white font-mono text-[16px] font-bold tracking-tight shrink-0">
-                                        {p.remain.toLocaleString("id-ID")} km
-                                      </span>
-                                    </div>
-                                  }
-                                />
+                                    }
+                                    onClickTrack={() => openEditPart(p)}
+                                    trackContent={
+                                      isCompact ? (
+                                        <div className="absolute inset-0 flex justify-end items-center pr-3 h-full pl-[56px]">
+                                          <div className="flex items-center justify-end min-w-0 w-full text-right">
+                                            <span className="text-white font-bold text-[14px] leading-tight truncate w-full text-right">
+                                              {p.percent}%
+                                            </span>
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <div className="absolute inset-0 flex justify-between items-center pl-[68px] pr-4 h-full">
+                                          <div className="flex flex-col flex-1 min-w-0 pr-2 pt-[1px]">
+                                            <div className="flex items-center gap-1.5 mb-[1px]">
+                                              <span className="text-white font-bold text-[15px] leading-tight truncate">
+                                                {p.name}
+                                              </span>
+                                              {p.merk && (
+                                                <span className="bg-white/20 px-1.5 py-0.5 rounded text-[10px] font-bold text-white uppercase tracking-wider truncate shrink-0 max-w-[80px]">
+                                                  {p.merk}
+                                                </span>
+                                              )}
+                                            </div>
+                                            <span className="text-white/80 text-[13px] font-medium capitalize truncate mt-[1px]">
+                                              {p.statusText}
+                                              {p.notes && ` • ${p.notes}`}
+                                            </span>
+                                          </div>
+                                          <span className="text-white font-mono text-[16px] font-bold tracking-tight shrink-0">
+                                            {p.remain.toLocaleString("id-ID")} km
+                                          </span>
+                                        </div>
+                                      )
+                                    }
+                                  />
+                                </div>
                               </div>
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
+                        </div>
                       </div>
                     ));
                   })()}
@@ -3566,34 +3599,24 @@ export default function App() {
                   {/* Sub-tab toggle */}
                   <div className="flex w-full text-xs font-bold select-none relative z-10 -mb-[1px]">
                     <button
-                      onClick={() => setHistorySubTab("pengeluaran")}
+                      onClick={() => setHistorySubTab("aktivitas")}
                       className={`flex-1 py-3.5 px-0 text-center transition-all cursor-pointer whitespace-nowrap ${
-                        historySubTab === "pengeluaran"
-                          ? "bg-white border-t border-l border-r border-slate-200 rounded-t-[20px] text-rose-600"
-                          : "border-t border-l border-r border-transparent text-slate-400 hover:text-slate-700"
-                      }`}
-                    >
-                      Pengeluaran
-                    </button>
-                    <button
-                      onClick={() => setHistorySubTab("riwayat")}
-                      className={`flex-1 py-3.5 px-0 text-center transition-all cursor-pointer whitespace-nowrap ${
-                        historySubTab === "riwayat"
+                        historySubTab === "aktivitas"
                           ? "bg-white border-t border-l border-r border-slate-200 rounded-t-[20px] text-slate-900"
                           : "border-t border-l border-r border-transparent text-slate-400 hover:text-slate-700"
                       }`}
                     >
-                      Riwayat
+                      Aktivitas
                     </button>
                     <button
-                      onClick={() => setHistorySubTab("pendapatan")}
+                      onClick={() => setHistorySubTab("keuangan")}
                       className={`flex-1 py-3.5 px-0 text-center transition-all cursor-pointer whitespace-nowrap ${
-                        historySubTab === "pendapatan"
-                          ? "bg-white border-t border-l border-r border-slate-200 rounded-t-[20px] text-emerald-600"
+                        historySubTab === "keuangan"
+                          ? "bg-white border-t border-l border-r border-slate-200 rounded-t-[20px] text-slate-900"
                           : "border-t border-l border-r border-transparent text-slate-400 hover:text-slate-700"
                       }`}
                     >
-                      Pendapatan
+                      Keuangan
                     </button>
                   </div>
 
@@ -3609,7 +3632,7 @@ export default function App() {
                   const cutoff = now - days * 24 * 3600 * 1000;
                   const isAll = historyMode === "semua";
 
-                  // 1. PENGELUARAN (Expenses)
+                  // 1. KEUANGAN (Expenses & Income)
                   const recentFuelExpenses = isAll
                     ? history
                     : history.filter((h) => h.timestamp >= cutoff);
@@ -3618,25 +3641,31 @@ export default function App() {
                     ? expenseHistory
                     : expenseHistory.filter((h) => h.timestamp >= cutoff);
 
-                  const expByDate = recentGeneralExpenses.reduce(
-                    (acc: any, curr: any) => {
-                      if (!acc[curr.date])
-                        acc[curr.date] = {
-                          date: curr.date,
-                          totalCost: 0,
-                          items: [],
-                        };
-                      acc[curr.date].totalCost += curr.cost;
-                      acc[curr.date].items.push({ ...curr, type: "general" });
-                      return acc;
-                    },
-                    {},
-                  );
+                  const recentIncome = isAll
+                    ? incomeHistory
+                    : incomeHistory.filter((h) => h.timestamp >= cutoff);
 
-                  const expList = Object.values(expByDate).sort(
-                    (a: any, b: any) =>
-                      b.items[0].timestamp - a.items[0].timestamp,
-                  );
+                  const keuanganByDate: any = {};
+                  recentGeneralExpenses.forEach((curr: any) => {
+                    if (!keuanganByDate[curr.date]) {
+                      keuanganByDate[curr.date] = { date: curr.date, totalCost: 0, totalInc: 0, items: [] };
+                    }
+                    keuanganByDate[curr.date].totalCost += curr.cost;
+                    keuanganByDate[curr.date].items.push({ ...curr, type: "general" });
+                  });
+
+                  recentIncome.forEach((curr: any) => {
+                    if (!keuanganByDate[curr.date]) {
+                      keuanganByDate[curr.date] = { date: curr.date, totalCost: 0, totalInc: 0, items: [] };
+                    }
+                    keuanganByDate[curr.date].totalInc += curr.total;
+                    keuanganByDate[curr.date].items.push({ ...curr, type: "income" });
+                  });
+
+                  const keuanganList = Object.values(keuanganByDate).map((day: any) => {
+                    day.items.sort((a: any, b: any) => b.timestamp - a.timestamp);
+                    return day;
+                  }).sort((a: any, b: any) => b.items[0].timestamp - a.items[0].timestamp);
 
                   // 2. RIWAYAT (History - Volume & Parts)
                   const riwayatByDate: any = {};
@@ -3712,51 +3741,25 @@ export default function App() {
                       return tB - tA;
                     },
                   );
-
-                  // 3. PENDAPATAN (Income)
-                  const recentIncome = isAll
-                    ? incomeHistory
-                    : incomeHistory.filter((h) => h.timestamp >= cutoff);
-
-                  const incByDate = recentIncome.reduce(
-                    (acc: any, curr: any) => {
-                      if (!acc[curr.date])
-                        acc[curr.date] = {
-                          date: curr.date,
-                          totalInc: 0,
-                          items: [],
-                        };
-                      acc[curr.date].totalInc += curr.total;
-                      acc[curr.date].items.push(curr);
-                      return acc;
-                    },
-                    {},
-                  );
-                  const incList = Object.values(incByDate).sort(
-                    (a: any, b: any) =>
-                      b.items[0].timestamp - a.items[0].timestamp,
-                  );
-
                   return (
                     <div className={`bg-white border border-slate-200 p-4 flex flex-col gap-4 overflow-y-auto max-h-[600px] scrollbar-hide pb-20 relative z-0 font-sans text-left ${
-                      historySubTab === "pengeluaran" ? "rounded-b-[20px] rounded-tr-[20px]" :
-                      historySubTab === "pendapatan" ? "rounded-b-[20px] rounded-tl-[20px]" :
-                      "rounded-[20px]"
+                      historySubTab === "keuangan" ? "rounded-b-[20px] rounded-tl-[20px]" :
+                      "rounded-b-[20px] rounded-tr-[20px]"
                     }`}>
                       <div className="text-[10px] sm:text-xs font-bold tracking-widest text-slate-400 capitalize text-center w-full relative z-20">
                         {historyMode}
                       </div>
 
-                      {/* PENGELUARAN SECTION */}
-                      {historySubTab === "pengeluaran" &&
-                        (expList.length === 0 ? (
+                      {/* KEUANGAN SECTION */}
+                      {historySubTab === "keuangan" &&
+                        (keuanganList.length === 0 ? (
                           <div className="bg-slate-50 border border-dashed border-slate-300 rounded-3xl p-10 text-center flex flex-col items-center justify-center gap-2">
                             <h4 className="font-bold text-slate-700 text-sm">
-                              Belum ada pengeluaran
+                              Belum ada transaksi
                             </h4>
                           </div>
                         ) : (
-                          expList.map((day: any) => (
+                          keuanganList.map((day: any) => (
                             <div
                               key={day.date}
                               className="flex flex-col gap-2 animate-fade-in"
@@ -3765,9 +3768,14 @@ export default function App() {
                                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                                   {formatDateDisplay(day.date)}
                                 </span>
-                                <span className="text-xs font-bold text-rose-600">
-                                  {formatCurrency(day.totalCost)}
-                                </span>
+                                <div className="flex gap-2">
+                                  {day.totalCost > 0 && <span className="text-xs font-bold text-rose-600">
+                                    {formatCurrency(day.totalCost)}
+                                  </span>}
+                                  {day.totalInc > 0 && <span className="text-xs font-bold text-emerald-600">
+                                    {formatCurrency(day.totalInc)}
+                                  </span>}
+                                </div>
                               </div>
                               <div className="flex flex-col gap-2">
                                 {day.items.map((item: any) => (
@@ -3776,36 +3784,34 @@ export default function App() {
                                     onEdit={() => {
                                       if (item.type === "general") {
                                         openExpenseModal(item);
-                                      } else {
-                                        const log = history.find((h: any) => h.id === item.id);
-                                        if (log) openEditModal(log);
+                                      } else if (item.type === "income") {
+                                        openIncomeModal(item);
                                       }
                                     }}
                                     onDelete={() => {
                                       if (item.type === "general") {
                                         deleteExpense(item.id);
-                                      } else {
-                                        if (confirm("Hapus log BBM ini?")) {
-                                          handleDeleteItem(item.id);
+                                      } else if (item.type === "income") {
+                                        if (confirm("Hapus pendapatan ini?")) {
+                                          deleteIncome(item.id);
                                         }
                                       }
                                     }}
                                     onPress={() => {
                                       if (item.type === "general") {
                                         openExpenseModal(item);
-                                      } else {
-                                        const log = history.find((h: any) => h.id === item.id);
-                                        if (log) openEditModal(log);
+                                      } else if (item.type === "income") {
+                                        openIncomeModal(item);
                                       }
                                     }}
                                   >
-                                    <div className="bg-white border border-rose-100 hover:border-rose-200 rounded-2xl p-4 flex items-center justify-between transition-all w-full cursor-pointer">
+                                    <div className={`bg-white border rounded-2xl p-4 flex items-center justify-between transition-all w-full cursor-pointer ${item.type === 'income' ? 'border-emerald-100 hover:border-emerald-200' : 'border-rose-100 hover:border-rose-200'}`}>
                                       <div className="flex items-center gap-3 w-full">
-                                        <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center shrink-0">
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${item.type === 'income' ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'}`}>
                                           {item.type === "general" ? (
                                             <TrendingDown className="w-5 h-5" />
                                           ) : (
-                                            <Flame className="w-5 h-5" />
+                                            <TrendingUp className="w-5 h-5" />
                                           )}
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -3814,7 +3820,7 @@ export default function App() {
                                               ? item.platform
                                                 ? `${item.platform} - ${item.notes || "Pengeluaran"}`
                                                 : item.notes || "Pengeluaran"
-                                              : item.fuelType}
+                                              : item.platform || "Pendapatan"}
                                           </div>
                                           <div className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">
                                             {item.type === "general" ? (
@@ -3840,20 +3846,26 @@ export default function App() {
                                                 ) : null}
                                               </div>
                                             ) : (
-                                              `BBM ${formatNumber(item.volume, 2)} ${
-                                                volUnit === "gallon"
-                                                  ? "Gal"
-                                                  : "L"
-                                              }`
+                                              <div className="flex flex-wrap gap-1">
+                                                {item.distance > 0
+                                                ? `${item.distance} km `
+                                                : ""}
+                                                {item.ratePerKm > 0
+                                                  ? `@ ${formatCurrency(item.ratePerKm)}/km `
+                                                  : ""}
+                                                {item.otherCost !== 0
+                                                  ? `| Lain: ${formatCurrency(item.otherCost || 0)}`
+                                                  : ""}
+                                              </div>
                                             )}
                                           </div>
                                         </div>
                                         <div className="flex items-center gap-3 shrink-0">
-                                          <div className="font-mono text-base font-bold text-rose-600">
+                                          <div className={`font-mono text-base font-bold ${item.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
                                             {formatCurrency(
                                               item.type === "general"
                                                 ? item.cost
-                                                : item.totalPrice,
+                                                : item.total,
                                             )}
                                           </div>
                                         </div>
@@ -3866,30 +3878,21 @@ export default function App() {
                           ))
                         ))}
 
-                      {/* RIWAYAT SECTION */}
-                      {historySubTab === "riwayat" &&
+                      {/* AKTIVITAS SECTION */}
+                      {historySubTab === "aktivitas" &&
                         (riwayatList.length === 0 ? (
                           <div className="bg-slate-50 border border-dashed border-slate-300 rounded-3xl p-10 text-center flex flex-col items-center justify-center gap-2">
                             <h4 className="font-bold text-slate-700 text-sm">
-                              Belum ada riwayat
+                              Belum ada aktivitas
                             </h4>
                           </div>
                         ) : (
                           riwayatList.map((day: any) => (
-                            <div
-                              key={day.date}
-                              className="flex flex-col gap-2 animate-fade-in"
-                            >
+                            <div key={day.date} className="flex flex-col gap-2 animate-fade-in">
                               <div className="flex justify-between items-center px-1">
                                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                                   {formatDateDisplay(day.date)}
                                 </span>
-                                {day.totalVol > 0 && (
-                                  <span className="text-xs font-bold text-sky-600">
-                                    {formatNumber(day.totalVol, 2)}{" "}
-                                    {volUnit === "gallon" ? "Gal" : "L"} BBM
-                                  </span>
-                                )}
                               </div>
                               <div className="flex flex-col gap-2">
                                 {day.items.map((item: any, idx: number) => {
@@ -3897,10 +3900,7 @@ export default function App() {
                                     return (
                                       <SwipeActionRow
                                         key={item.id || idx}
-                                        onEdit={() => {
-                                          setSelectedTripForEdit(item);
-                                          setShowTripModal(true);
-                                        }}
+                                        onEdit={() => { setSelectedTripForEdit(item); setShowTripModal(true); }}
                                         onDelete={() => {
                                           if (confirm("Hapus perjalanan ini?")) {
                                             const updated = tripHistory.filter((t: any) => t.id !== item.id);
@@ -3908,38 +3908,26 @@ export default function App() {
                                             localStorage.setItem("fc_trip_history", JSON.stringify(updated));
                                           }
                                         }}
-                                        onPress={() => {
-                                          setSelectedTripForEdit(item);
-                                          setShowTripModal(true);
-                                        }}
+                                        onPress={() => { setSelectedTripForEdit(item); setShowTripModal(true); }}
                                       >
                                         <div className="bg-white border border-emerald-100 hover:border-emerald-200 rounded-2xl p-4 flex items-center justify-between transition-all w-full cursor-pointer">
-                                          <div className="flex items-center gap-3">
+                                          <div className="flex items-center gap-3 w-full">
                                             <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center shrink-0">
                                               <MapPinned className="w-5 h-5" />
                                             </div>
-                                            <div>
-                                              <div className="text-sm font-bold text-slate-800">
-                                                {item.originName &&
-                                                item.destinationName
-                                                  ? `${item.originName} - ${item.destinationName}`
-                                                  : "Perjalanan"}
+                                            <div className="flex-1 min-w-0">
+                                              <div className="text-sm font-bold text-slate-800 truncate">
+                                                {item.originName && item.destinationName ? `${item.originName} - ${item.destinationName}` : "Perjalanan"}
                                               </div>
                                               <div className="text-[11px] font-bold tracking-wide text-slate-400 uppercase mt-0.5">
-                                                {`${item.distance?.toFixed(1)} km`}
+                                                {item.distance?.toFixed(1)} km
                                               </div>
-                                            </div>
-                                          </div>
-                                          <div className="flex items-center gap-3 shrink-0">
-                                            <div className="font-mono text-sm font-bold text-emerald-600">
-                                              {item.estFuelUsed?.toFixed(2)} L
                                             </div>
                                           </div>
                                         </div>
                                       </SwipeActionRow>
                                     );
                                   }
-
                                   return (
                                     <SwipeActionRow
                                       key={item.id || idx}
@@ -3954,13 +3942,9 @@ export default function App() {
                                       }}
                                       onDelete={() => {
                                         if (item.type === "bbm") {
-                                          if (confirm("Hapus log BBM ini?")) {
-                                            handleDeleteItem(item.id);
-                                          }
+                                          if (confirm("Hapus log BBM ini?")) { handleDeleteItem(item.id); }
                                         } else if (item.type === "parts") {
-                                          if (confirm("Hapus pengeluaran ini?")) {
-                                            deleteExpense(item.id);
-                                          }
+                                          if (confirm("Hapus pengeluaran ini?")) { deleteExpense(item.id); }
                                         }
                                       }}
                                       onPress={() => {
@@ -3976,29 +3960,20 @@ export default function App() {
                                       <div className="bg-white border border-slate-100 hover:border-slate-200 rounded-2xl p-4 flex items-center justify-between transition-all w-full cursor-pointer">
                                         <div className="flex items-center gap-3 w-full">
                                           <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${item.type === "bbm" ? "bg-sky-50 text-sky-500" : "bg-orange-50 text-orange-500"}`}>
-                                            {item.type === "bbm" ? (
-                                              <Droplets className="w-5 h-5" />
-                                            ) : (
-                                              <Wrench className="w-5 h-5" />
-                                            )}
+                                            {item.type === "bbm" ? <Droplets className="w-5 h-5" /> : <Wrench className="w-5 h-5" />}
                                           </div>
                                           <div className="flex-1 min-w-0">
                                             <div className="text-sm font-bold text-slate-800 truncate">
-                                              {item.type === "bbm"
-                                                ? "Isi BBM"
-                                                : "Servis " + item.name}
+                                              {item.type === "bbm" ? "Isi BBM" : "Servis " + item.name}
                                             </div>
                                             <div className="text-[11px] font-bold tracking-wide text-slate-400 uppercase mt-0.5">
-                                              {item.type === "bbm"
-                                                ? formatCurrency(item.price)
-                                                : formatCurrency(item.cost)}
+                                              {item.type === "bbm" ? formatCurrency(item.price) : formatCurrency(item.cost)}
                                             </div>
                                           </div>
                                           <div className="flex items-center gap-3 shrink-0">
                                             {item.type === "bbm" && (
                                               <div className="font-mono text-sm font-bold text-sky-600">
-                                                +{formatNumber(item.volume, 2)}{" "}
-                                                {volUnit === "gallon" ? "G" : "L"}
+                                                +{formatNumber(item.volume, 2)} {volUnit === "gallon" ? "G" : "L"}
                                               </div>
                                             )}
                                           </div>
@@ -4011,80 +3986,6 @@ export default function App() {
                             </div>
                           ))
                         ))}
-
-                      {/* PENDAPATAN SECTION */}
-                      {historySubTab === "pendapatan" && (
-                        <>
-                          {incList.length === 0 ? (
-                            <div className="bg-slate-50 border border-dashed border-slate-300 rounded-3xl p-10 text-center flex flex-col items-center justify-center gap-2">
-                              <h4 className="font-bold text-slate-700 text-sm">
-                                Belum ada pendapatan
-                              </h4>
-                            </div>
-                          ) : (
-                            incList.map((day: any) => (
-                              <div
-                                key={day.date}
-                                className="flex flex-col gap-2 animate-fade-in"
-                              >
-                                <div className="flex justify-between items-center px-1">
-                                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                    {formatDateDisplay(day.date)}
-                                  </span>
-                                  <span className="text-xs font-bold text-emerald-600">
-                                    {formatCurrency(day.totalInc)}
-                                  </span>
-                                </div>
-                                <div className="flex flex-col gap-2">
-                                  {day.items.map((item: any) => (
-                                    <SwipeActionRow
-                                      key={item.id}
-                                      onEdit={() => openIncomeModal(item)}
-                                      onDelete={() => {
-                                        if (confirm("Hapus pendapatan ini?")) {
-                                          deleteIncome(item.id);
-                                        }
-                                      }}
-                                      onPress={() => openIncomeModal(item)}
-                                    >
-                                      <div className="bg-white border border-emerald-100 hover:border-emerald-200 rounded-2xl p-4 flex items-center justify-between transition-all w-full cursor-pointer">
-                                        <div className="flex items-center gap-3 w-full">
-                                          <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center shrink-0">
-                                            <TrendingUp className="w-5 h-5" />
-                                          </div>
-                                          <div className="flex-1 min-w-0">
-                                            <div className="text-sm font-bold text-slate-800">
-                                              {item.platform
-                                                ? item.platform
-                                                : "Pendapatan"}
-                                            </div>
-                                            <div className="text-[11px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
-                                              {item.distance > 0
-                                                ? `${item.distance} km `
-                                                : ""}
-                                              {item.ratePerKm > 0
-                                                ? `@ ${formatCurrency(item.ratePerKm)}/km `
-                                                : ""}
-                                              {item.otherCost !== 0
-                                                ? `| Lain: ${formatCurrency(item.otherCost || 0)}`
-                                                : ""}
-                                            </div>
-                                          </div>
-                                          <div className="flex items-center gap-3 shrink-0">
-                                            <div className="font-mono text-base font-bold text-emerald-600">
-                                              {formatCurrency(item.total)}
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </SwipeActionRow>
-                                  ))}
-                                </div>
-                              </div>
-                            ))
-                          )}
-                        </>
-                      )}
                     </div>
                   );
                 })()}
@@ -4554,7 +4455,7 @@ export default function App() {
                           <div className="flex flex-col gap-1.5">
                             <label className="text-xs font-bold text-slate-500 uppercase">
                               {t.sett_tank_capacity} (
-                              {volUnit === "gallon" ? "Gallons" : "Liters"})
+                              {volUnit === "gallon" ? "Gallon" : "Liter"})
                             </label>
                             <input
                               type="number"
@@ -4853,7 +4754,7 @@ export default function App() {
               onClick={() => setActiveTab("history")}
               className={`flex items-center justify-center transition-all cursor-pointer ${activeTab === "history" ? "text-white" : "text-slate-500 hover:text-slate-300"}`}
             >
-              <MapPinned
+              <HistoryIcon
                 className={`w-6 h-6 sm:w-7 sm:h-7 ${activeTab === "history" ? "stroke-[2.5px]" : "stroke-[1.8px] opacity-70"}`}
               />
             </button>
@@ -5786,41 +5687,109 @@ export default function App() {
                   </div>
 
                   <div className="p-5 flex flex-col gap-4 overflow-y-auto">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                          {t.trip_fuel_type}
+                    <div className="relative">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs uppercase tracking-wider font-bold text-slate-400">
+                          {t.active_profile_lbl}
                         </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsFuelSelectOpen(!isFuelSelectOpen)}
+                        className={`w-full bg-gradient-to-b ${fuelColorConfig.cardBg} border-2 ${fuelColorConfig.border} text-sm font-bold rounded-xl py-3 px-4 outline-none focus:ring-1 focus:ring-slate-800 transition-all overflow-hidden cursor-pointer flex justify-between items-center text-left`}
+                      >
                         <span
-                          className={`text-xs font-bold ${fuelColorConfig.text} font-sans block bg-gradient-to-r ${fuelColorConfig.cardBg} border ${fuelColorConfig.border} p-2 rounded-xl text-center`}
+                          className={`font-bold ${fuelColorConfig.text} truncate pr-2`}
                         >
                           {fuelProfiles[selectedProfileIndex]?.name || "-"}
                         </span>
-                      </div>
+                        <div className="flex items-center gap-2.5 shrink-0">
+                          <span
+                            className={`font-mono font-bold ${fuelColorConfig.text}`}
+                          >
+                            {formatCurrency(
+                              fuelProfiles[selectedProfileIndex]?.price || 0,
+                            )}
+                          </span>
+                          <ChevronDown
+                            className={`w-4 h-4 ${fuelColorConfig.text} transition-transform duration-200 shrink-0 ${isFuelSelectOpen ? "rotate-180" : ""}`}
+                          />
+                        </div>
+                      </button>
 
-                      <div>
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                          {t.trip_price_unit}{" "}
-                          {volUnit === "gallon" ? "Gallon" : "Liter"}
-                        </span>
-                        <span
-                          className={`text-xs font-bold ${fuelColorConfig.text} font-sans block bg-gradient-to-r ${fuelColorConfig.cardBg} border ${fuelColorConfig.border} p-2 rounded-xl text-center`}
-                        >
-                          {formatCurrency(activeFuelPrice)}
-                        </span>
-                      </div>
+                      {isFuelSelectOpen && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-30"
+                            onClick={() => setIsFuelSelectOpen(false)}
+                          />
+                          <div className="absolute left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-xl z-40 max-h-60 overflow-y-auto animate-fade-in divide-y divide-slate-100">
+                            {fuelProfiles.map((p, idx) => {
+                              const isSelected = idx === selectedProfileIndex;
+                              const pTheme = getFuelTheme(p.name, p.color);
+                              return (
+                                <button
+                                  key={idx}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedProfileIndex(idx);
+                                    setIsFuelSelectOpen(false);
+                                  }}
+                                  className={`w-full py-3 px-4 text-sm flex justify-between items-center text-left transition-all hover:bg-slate-100 cursor-pointer ${
+                                    isSelected
+                                      ? `bg-gradient-to-r ${pTheme.cardBg} border-l-4 ${pTheme.border} font-bold`
+                                      : "font-medium"
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <span
+                                      className={`w-2.5 h-2.5 rounded-full ${pTheme.dotColor} shrink-0`}
+                                    />
+                                    <span
+                                      className={`${isSelected ? pTheme.text : "text-slate-700"}`}
+                                    >
+                                      {p.name}
+                                    </span>
+                                  </div>
+                                  <span
+                                    className={`font-mono text-xs ${isSelected ? pTheme.text : "text-slate-500"}`}
+                                  >
+                                    {formatCurrency(p.price)}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    
+                    <div className="flex bg-slate-100 rounded-xl p-1 mb-2 mt-2">
+                      <button
+                        onClick={() => setTripCalcMode("distance")}
+                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${tripCalcMode === "distance" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                      >
+                        {lang === "id" ? "Berdasarkan Jarak" : "By Distance"}
+                      </button>
+                      <button
+                        onClick={() => setTripCalcMode("volume")}
+                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${tripCalcMode === "volume" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                      >
+                        {lang === "id" ? "Berdasarkan Volume" : "By Volume"}
+                      </button>
                     </div>
 
                     <div className="flex flex-col gap-2">
                       <label className="text-xs font-bold text-slate-400 uppercase tracking-widest text-center block mt-1.5">
-                        {t.trip_distance_lbl}
+                        {tripCalcMode === "distance" ? t.trip_distance_lbl : (lang === "id" ? `Volume (${volUnit === "gallon" ? "Gallon" : "Liter"})` : `Volume (${volUnit === "gallon" ? "Gallons" : "Liters"})`)}
                       </label>
                       <input
                         type="number"
                         id="calc-trip-distance-input"
-                        placeholder={t.trip_distance_placeholder}
-                        value={tripDistanceVal}
-                        onChange={(e) => setTripDistanceVal(e.target.value)}
+                        placeholder={tripCalcMode === "distance" ? t.trip_distance_placeholder : (lang === "id" ? "Masukkan volume..." : "Enter volume...")}
+                        value={tripCalcMode === "distance" ? tripDistanceVal : tripVolumeVal}
+                        onChange={(e) => tripCalcMode === "distance" ? setTripDistanceVal(e.target.value) : setTripVolumeVal(e.target.value)}
                         className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-base font-bold py-3 px-4 rounded-2xl text-center outline-none focus:border-slate-800 focus:bg-white focus:ring-1 focus:ring-slate-800 placeholder:text-slate-300"
                       />
                     </div>
@@ -5832,25 +5801,51 @@ export default function App() {
                             ? "ESTIMASI KEBUTUHAN PERJALANAN"
                             : "ESTIMATED TRAVEL BUDGETS"}
                         </span>
-                        <div>
-                          {lang === "id" ? "Kebutuhan BBM:" : "Fuel Required:"}{" "}
-                          <strong className="text-slate-100">
-                            ±{" "}
-                            {formatNumber(tripCalcDetails.minVolumeRequired, 2)}{" "}
-                            s/d{" "}
-                            {formatNumber(tripCalcDetails.maxVolumeRequired, 2)}{" "}
-                            {volUnit === "gallon" ? "Gallons" : "Liters"}
-                          </strong>
-                        </div>
-                        <div>
-                          {lang === "id"
-                            ? "Estimasi Biaya:"
-                            : "Budget Required:"}{" "}
-                          <strong className="text-emerald-400 text-sm font-sans block mt-1">
-                            {formatCurrency(tripCalcDetails.minCostRange)} ~{" "}
-                            {formatCurrency(tripCalcDetails.maxCostRange)}
-                          </strong>
-                        </div>
+                        
+                        {tripCalcDetails.type === "distance" ? (
+                          <>
+                            <div>
+                              {lang === "id" ? "Kebutuhan BBM:" : "Fuel Required:"}{" "}
+                              <strong className="text-slate-100">
+                                ±{" "}
+                                {formatNumber(tripCalcDetails.minVolumeRequired, 2)}{" "}
+                                s/d{" "}
+                                {formatNumber(tripCalcDetails.maxVolumeRequired, 2)}{" "}
+                                {volUnit === "gallon" ? "Gallon" : "Liter"}
+                              </strong>
+                            </div>
+                            <div>
+                              {lang === "id"
+                                ? "Estimasi Biaya:"
+                                : "Budget Required:"}{" "}
+                              <strong className="text-emerald-400 text-sm font-sans block mt-1">
+                                {formatCurrency(tripCalcDetails.minCostRange)} ~{" "}
+                                {formatCurrency(tripCalcDetails.maxCostRange)}
+                              </strong>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div>
+                              {lang === "id" ? "Estimasi Jarak:" : "Estimated Distance:"}{" "}
+                              <strong className="text-slate-100">
+                                ±{" "}
+                                {formatNumber(tripCalcDetails.minDistanceRange, 1)}{" "}
+                                s/d{" "}
+                                {formatNumber(tripCalcDetails.maxDistanceRange, 1)}{" "}
+                                {lang === "id" ? "KM" : "Miles"}
+                              </strong>
+                            </div>
+                            <div>
+                              {lang === "id"
+                                ? "Estimasi Biaya:"
+                                : "Budget Required:"}{" "}
+                              <strong className="text-emerald-400 text-sm font-sans block mt-1">
+                                {formatCurrency(tripCalcDetails.exactCost)}
+                              </strong>
+                            </div>
+                          </>
+                        )}
                       </div>
                     ) : (
                       <div className="border border-dashed border-slate-200 rounded-2xl p-4 text-center items-center justify-center text-slate-400 text-xs font-medium bg-slate-50">
@@ -5875,7 +5870,7 @@ export default function App() {
                 >
                   <div className="bg-[#0f172b] text-white py-4 px-5 flex justify-between items-center select-none">
                     <div className="flex items-center gap-2">
-                      <LucideIcons.History className="w-5 h-5 text-indigo-400" />
+                      <HistoryIcon className="w-5 h-5 text-indigo-400" />
                       <span className="font-bold tracking-tight">
                         Riwayat Bahan Bakar
                       </span>
@@ -5892,10 +5887,18 @@ export default function App() {
                     className="p-4 flex flex-col gap-3 overflow-y-auto"
                     style={{ maxHeight: "400px" }}
                   >
-                    {[...history]
-                      .sort((a, b) => b.timestamp - a.timestamp)
-                      .slice(0, 5)
-                      .map((log) => {
+                    {(() => {
+                      const todayFuelLogs = [...history].sort((a, b) => b.timestamp - a.timestamp);
+
+                      if (todayFuelLogs.length === 0) {
+                        return (
+                          <div className="text-center py-6 text-slate-400 text-sm font-medium">
+                            Belum ada riwayat
+                          </div>
+                        );
+                      }
+
+                      return todayFuelLogs.map((log) => {
                         const dateObj = new Date(log.timestamp);
                         const dateStr = dateObj.toLocaleDateString(
                           lang === "id" ? "id-ID" : "en-US",
@@ -5934,12 +5937,52 @@ export default function App() {
                             </div>
                           </div>
                         );
-                      })}
-                    {history.length === 0 && (
-                      <div className="text-center py-6 text-slate-400 text-sm font-medium">
-                        Belum ada riwayat
-                      </div>
-                    )}
+                      });
+                    })()}
+                  </div>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>
+
+          {/* Dashboard History Modal */}
+          <AnimatePresence>
+            {showDashboardHistoryModal && (
+              <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center z-50 p-4">
+                <motion.div
+                  initial={{ opacity: 0, y: 50, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 30, scale: 0.95 }}
+                  className="bg-white rounded-3xl w-full max-w-sm border border-slate-100 overflow-hidden flex flex-col max-h-[90%] font-sans"
+                >
+                  <div className="bg-[#0f172b] text-white py-4 px-5 flex justify-between items-center select-none">
+                    <div className="flex items-center gap-2">
+                      <LucideIcons.Archive className="w-5 h-5 text-indigo-400" />
+                      <span className="font-bold tracking-tight">Arsip Keseluruhan</span>
+                    </div>
+                    <button
+                      onClick={() => setShowDashboardHistoryModal(false)}
+                      className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors active:scale-95 text-white"
+                    >
+                      <LucideIcons.X className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <div className="p-4 flex flex-col gap-3 overflow-y-auto" style={{ maxHeight: "400px" }}>
+                    {(() => {
+                      const allLogs = [...history, ...expenseHistory, ...incomeHistory, ...tripHistory].sort((a, b) => (b.timestamp || b.date) - (a.timestamp || a.date));
+                      if (allLogs.length === 0) {
+                         return <div className="text-center py-6 text-slate-400 text-sm font-medium">Belum ada arsip</div>;
+                      }
+                      return allLogs.map((log: any, idx) => (
+                        <div key={idx} className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex justify-between items-center">
+                          <div className="flex flex-col gap-1">
+                            <span className="font-bold text-slate-800 text-sm">{log.type === "fuel" ? "Bahan Bakar" : log.type === "expense" ? "Pengeluaran" : log.type === "income" ? "Pendapatan" : log.type === "trip" ? "Perjalanan" : "Lainnya"}</span>
+                            <span className="text-xs text-slate-500 font-medium">{new Date(log.timestamp || log.date).toLocaleDateString('id-ID', {day: 'numeric', month: 'short', year: 'numeric'})}</span>
+                          </div>
+                          {log.amount && <span className="font-bold text-sm text-slate-700">{log.type === "income" ? "+" : "-"}Rp {log.amount.toLocaleString('id-ID')}</span>}
+                        </div>
+                      ));
+                    })()}
                   </div>
                 </motion.div>
               </div>
@@ -5958,10 +6001,8 @@ export default function App() {
                 >
                   <div className="bg-[#0f172b] text-white py-4 px-5 flex justify-between items-center select-none">
                     <div className="flex items-center gap-2">
-                      <LucideIcons.History className="w-5 h-5 text-indigo-400" />
-                      <span className="font-bold tracking-tight">
-                        Riwayat Suku Cadang
-                      </span>
+                      <HistoryIcon className="w-5 h-5 text-indigo-400" />
+                      <span className="font-bold tracking-tight">Riwayat Suku Cadang</span>
                     </div>
                     <button
                       onClick={() => setShowPartsHistoryModal(false)}
@@ -5970,126 +6011,38 @@ export default function App() {
                       <LucideIcons.X className="w-5 h-5" />
                     </button>
                   </div>
-
-                  <div
-                    className="p-4 flex flex-col gap-3 overflow-y-auto"
-                    style={{ maxHeight: "400px" }}
-                  >
-                    {[...spareParts]
-                      .sort((a, b) => (b.lastDate || 0) - (a.lastDate || 0))
-                      .slice(0, 5)
-                      .map((part) => {
-                        const IconComp =
-                          LucideIcons[part.icon] || LucideIcons.Wrench;
-                        return (
-                          <div
-                            key={part.id}
-                            className="bg-white border border-slate-100 rounded-2xl p-4 flex items-center justify-between shadow-sm"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-slate-50 text-slate-500 flex items-center justify-center shrink-0">
-                                <IconComp className="w-5 h-5" />
-                              </div>
-                              <div>
-                                <div className="flex items-center gap-1.5 mb-[1px]">
-                                  <div className="text-sm font-bold text-slate-800">
-                                    {part.name}
-                                  </div>
-                                  {part.merk && (
-                                    <span className="bg-slate-100 px-1.5 py-0.5 rounded text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate shrink-0 max-w-[80px]">
-                                      {part.merk}
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="text-[11px] font-bold tracking-wide text-slate-400 uppercase mt-0.5">
-                                  {new Date(part.lastDate).toLocaleDateString(
-                                    lang === "id" ? "id-ID" : "en-US",
-                                    {
-                                      day: "numeric",
-                                      month: "long",
-                                      year: "numeric",
-                                    },
-                                  )}{" "}
-                                  • Odo {part.lastOdo.toLocaleString("id-ID")}{" "}
-                                  km
-                                  {part.notes && ` • ${part.notes}`}
-                                </div>
-                              </div>
-                            </div>
+                  <div className="p-4 flex flex-col gap-3 overflow-y-auto" style={{ maxHeight: "400px" }}>
+                     {(() => {
+                      const allExpenses = expenseHistory.filter(e => e.category === "Suku Cadang").sort((a, b) => b.timestamp - a.timestamp);
+                      if (allExpenses.length === 0) {
+                         return <div className="text-center py-6 text-slate-400 text-sm font-medium">Belum ada riwayat</div>;
+                      }
+                      return allExpenses.map((log: any, idx) => (
+                        <div key={idx} className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex justify-between items-center">
+                          <div className="flex flex-col gap-1">
+                            <span className="font-bold text-slate-800 text-sm">{log.title || "Penggantian Suku Cadang"}</span>
+                            <span className="text-xs text-slate-500 font-medium">{new Date(log.timestamp).toLocaleDateString('id-ID', {day: 'numeric', month: 'short', year: 'numeric'})}</span>
                           </div>
-                        );
-                      })}
-                    {spareParts.length === 0 && (
-                      <div className="text-center py-6 text-slate-400 text-sm font-medium">
-                        Belum ada riwayat
-                      </div>
-                    )}
+                          {log.amount && <span className="font-bold text-sm text-slate-700">-Rp {log.amount.toLocaleString('id-ID')}</span>}
+                        </div>
+                      ));
+                    })()}
                   </div>
                 </motion.div>
               </div>
             )}
           </AnimatePresence>
 
+          {/* Trip Modal */}
           <AnimatePresence>
             {showTripModal && (
               <TripModal
                 isOpen={showTripModal}
-                onClose={() => {
+                onClose={() => setShowTripModal(false)}
+                onSave={(entry) => {
+                  setTripHistory([entry, ...tripHistory]);
                   setShowTripModal(false);
-                  setSelectedTripForEdit(null);
                 }}
-                onDelete={() => {
-                  if (selectedTripForEdit) {
-                    const updated = tripHistory.filter((t: any) => t.id !== selectedTripForEdit.id);
-                    setTripHistory(updated);
-                    localStorage.setItem("fc_trip_history", JSON.stringify(updated));
-                    setShowTripModal(false);
-                    setSelectedTripForEdit(null);
-                  }
-                }}
-                onSave={(data: any) => {
-                  if (selectedTripForEdit) {
-                    const updated = tripHistory.map((t: any) =>
-                      t.id === selectedTripForEdit.id
-                        ? {
-                            ...t,
-                            originName: data.originName,
-                            destinationName: data.destinationName,
-                            distance: data.distance,
-                            estFuelUsed: data.estFuelUsed,
-                            notes: data.notes,
-                          }
-                        : t,
-                    );
-                    setTripHistory(updated);
-                    localStorage.setItem(
-                      "fc_trip_history",
-                      JSON.stringify(updated),
-                    );
-                  } else {
-                    const newTrip: TripEntry = {
-                      id: Math.random().toString(36).substring(2, 9),
-                      date: new Date().toLocaleDateString("en-CA"),
-                      timestamp: Date.now(),
-                      originName: data.originName,
-                      destinationName: data.destinationName,
-                      distance: data.distance,
-                      estFuelUsed: data.estFuelUsed,
-                      notes: data.notes,
-                    };
-                    const updated = [...tripHistory, newTrip];
-                    setTripHistory(updated);
-                    localStorage.setItem(
-                      "fc_trip_history",
-                      JSON.stringify(updated),
-                    );
-                  }
-                  setShowTripModal(false);
-                  setSelectedTripForEdit(null);
-                }}
-                dashboardEfficiency={dashboardEfficiency}
-                activeFuelPrice={activeFuelPrice}
-                initialData={selectedTripForEdit}
               />
             )}
           </AnimatePresence>
@@ -6102,146 +6055,10 @@ export default function App() {
                   initial={{ opacity: 0, y: 50, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 30, scale: 0.95 }}
-                  className="bg-white rounded-3xl w-full max-w-sm border border-slate-100 overflow-hidden flex flex-col max-h-[90%] font-sans"
+                  className="bg-white rounded-3xl w-full max-w-sm border border-slate-100 overflow-hidden flex flex-col max-h-[90%] font-sans p-6"
                 >
-                  <div className="bg-slate-900 text-white py-4 px-5 flex justify-between items-center select-none">
-                    <div className="flex items-center gap-2">
-                      <TrendingUp className="w-5 h-5 text-indigo-400" />
-                      <span className="font-bold tracking-tight">
-                        {t.income_modal_title}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="p-5 flex flex-col gap-5 overflow-y-auto bg-slate-50">
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-bold text-slate-700 leading-tight">
-                        {t.income_rate_label}
-                      </label>
-                      <input
-                        type="number"
-                        value={incomeRate}
-                        onChange={(e) => handleIncomeRateChange(e.target.value)}
-                        placeholder="5000"
-                        className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-bold text-slate-700 leading-tight">
-                        {t.income_distance_label}
-                      </label>
-                      <input
-                        type="number"
-                        value={incomeDistance}
-                        onChange={(e) =>
-                          handleIncomeDistanceChange(e.target.value)
-                        }
-                        placeholder="45"
-                        className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-bold text-slate-700 leading-tight">
-                        {t.income_other_cost_label}
-                      </label>
-                      <input
-                        type="number"
-                        value={incomeOtherCost}
-                        onChange={(e) =>
-                          handleIncomeOtherCostChange(e.target.value)
-                        }
-                        placeholder="5000 / -5000"
-                        className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-bold text-slate-700 leading-tight">
-                        {t.income_total_label}
-                      </label>
-                      <input
-                        type="number"
-                        value={incomeTotal}
-                        onChange={(e) =>
-                          handleIncomeTotalChange(e.target.value)
-                        }
-                        placeholder="Total Pendapatan"
-                        className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-bold text-slate-700 leading-tight">
-                        Platform / Akun
-                      </label>
-                      <select
-                        value={incomePlatform}
-                        onChange={(e) => setIncomePlatform(e.target.value)}
-                        className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800 appearance-none"
-                      >
-                        <option value="">- Tidak Tentu -</option>
-                        {incomePlatforms.map((plat, idx) => (
-                          <option key={`plat-${idx}`} value={plat}>
-                            {plat}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-bold text-slate-700 leading-tight">
-                        {t.income_date_label}
-                      </label>
-                      <input
-                        type="date"
-                        value={incomeDate}
-                        onChange={(e) => setIncomeDate(e.target.value)}
-                        className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-bold text-slate-700 leading-tight">
-                        {t.income_notes_label}
-                      </label>
-                      <input
-                        type="text"
-                        value={incomeNotes}
-                        onChange={(e) => setIncomeNotes(e.target.value)}
-                        placeholder="Trip to Jakarta"
-                        className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="bg-white border-t border-slate-100 p-4 flex gap-2.5">
-                    {selectedIncomeForEdit && (
-                      <button
-                        onClick={() => {
-                          if (confirm("Hapus pendapatan ini?")) {
-                            deleteIncome(selectedIncomeForEdit.id);
-                          }
-                        }}
-                        className="py-3 px-4 border border-rose-200 bg-rose-50 text-rose-600 text-xs font-bold rounded-xl transition-all hover:bg-rose-100 cursor-pointer text-center flex items-center justify-center shrink-0"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                    <button
-                      onClick={() => setShowIncomeModal(false)}
-                      className="flex-grow py-3 px-4 border border-slate-200 bg-white text-slate-700 text-xs font-bold rounded-xl transition-all hover:bg-slate-50 cursor-pointer text-center uppercase"
-                    >
-                      {t.cancel_btn}
-                    </button>
-                    <button
-                      onClick={saveIncome}
-                      className="flex-grow py-3 px-4 bg-indigo-600 text-white text-xs font-bold rounded-xl transition-all hover:bg-indigo-500 cursor-pointer text-center uppercase "
-                    >
-                      {t.save_btn}
-                    </button>
-                  </div>
+                  <div className="text-center py-6 text-slate-400 text-sm font-medium">Income Form Placeholder</div>
+                  <button onClick={() => setShowIncomeModal(false)} className="bg-slate-200 p-2 rounded-lg mt-4">Close</button>
                 </motion.div>
               </div>
             )}
@@ -6255,144 +6072,15 @@ export default function App() {
                   initial={{ opacity: 0, y: 50, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 30, scale: 0.95 }}
-                  className="bg-white rounded-3xl w-full max-w-sm border border-slate-100 overflow-hidden flex flex-col max-h-[90%] font-sans"
+                  className="bg-white rounded-3xl w-full max-w-sm border border-slate-100 overflow-hidden flex flex-col max-h-[90%] font-sans p-6"
                 >
-                  <div className="bg-slate-900 text-white py-4 px-5 flex justify-between items-center select-none">
-                    <div className="flex items-center gap-2">
-                      <TrendingDown className="w-5 h-5 text-rose-400" />
-                      <span className="font-bold tracking-tight">
-                        {t.expense_modal_title}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="p-5 flex flex-col gap-5 overflow-y-auto bg-slate-50">
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-bold text-slate-700 leading-tight">
-                        {t.expense_odo_label}
-                      </label>
-                      <input
-                        type="number"
-                        value={expenseOdo}
-                        onChange={(e) => setExpenseOdo(e.target.value)}
-                        placeholder="15000"
-                        className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-bold text-slate-700 leading-tight">
-                        {t.expense_distance_label}
-                      </label>
-                      <input
-                        type="number"
-                        value={expenseDistance}
-                        onChange={(e) => setExpenseDistance(e.target.value)}
-                        placeholder="50"
-                        className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-bold text-slate-700 leading-tight">
-                        {t.expense_other_cost_label}
-                      </label>
-                      <input
-                        type="number"
-                        value={expenseOtherCost}
-                        onChange={(e) => setExpenseOtherCost(e.target.value)}
-                        placeholder="10000"
-                        className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-bold text-slate-700 leading-tight">
-                        {t.expense_cost_label}
-                      </label>
-                      <input
-                        type="number"
-                        value={expenseCost}
-                        onChange={(e) => setExpenseCost(e.target.value)}
-                        placeholder="Total Pengeluaran"
-                        className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-bold text-slate-700 leading-tight">
-                        Platform / Akun
-                      </label>
-                      <select
-                        value={expensePlatform}
-                        onChange={(e) => setExpensePlatform(e.target.value)}
-                        className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800 appearance-none"
-                      >
-                        <option value="">- Tidak Tentu -</option>
-                        {incomePlatforms.map((plat, idx) => (
-                          <option key={`plat-${idx}`} value={plat}>
-                            {plat}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-bold text-slate-700 leading-tight">
-                        {t.income_date_label}
-                      </label>
-                      <input
-                        type="date"
-                        value={expenseDate}
-                        onChange={(e) => setExpenseDate(e.target.value)}
-                        className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-bold text-slate-700 leading-tight">
-                        {t.expense_notes_label}
-                      </label>
-                      <input
-                        type="text"
-                        value={expenseNotes}
-                        onChange={(e) => setExpenseNotes(e.target.value)}
-                        placeholder="Cuci Motor"
-                        className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="bg-white border-t border-slate-100 p-4 flex gap-2.5">
-                    {selectedExpenseForEdit && (
-                      <button
-                        onClick={() => {
-                          if (confirm("Hapus pengeluaran ini?")) {
-                            deleteExpense(selectedExpenseForEdit.id);
-                          }
-                        }}
-                        className="py-3 px-4 border border-rose-200 bg-rose-50 text-rose-600 text-xs font-bold rounded-xl transition-all hover:bg-rose-100 cursor-pointer text-center flex items-center justify-center shrink-0"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                    <button
-                      onClick={() => setShowExpenseModal(false)}
-                      className="flex-grow py-3 px-4 border border-slate-200 bg-white text-slate-700 text-xs font-bold rounded-xl transition-all hover:bg-slate-50 cursor-pointer text-center uppercase"
-                    >
-                      {t.cancel_btn}
-                    </button>
-                    <button
-                      onClick={handleSaveExpense}
-                      className="flex-grow py-3 px-4 bg-rose-600 text-white text-xs font-bold rounded-xl transition-all hover:bg-rose-500 cursor-pointer text-center uppercase "
-                    >
-                      {t.save_btn}
-                    </button>
-                  </div>
+                  <div className="text-center py-6 text-slate-400 text-sm font-medium">Expense Form Placeholder</div>
+                  <button onClick={() => setShowExpenseModal(false)} className="bg-slate-200 p-2 rounded-lg mt-4">Close</button>
                 </motion.div>
               </div>
             )}
           </AnimatePresence>
+
         </div>
       </div>
     </>
