@@ -1,0 +1,3 @@
+const fs = require('fs');
+
+// We don't have the rendered DOM, so this is hard. But we can search for a sequence of 5 divs containing a button...

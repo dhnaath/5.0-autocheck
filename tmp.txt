@@ -1,0 +1,47 @@
+162-import { motion, AnimatePresence } from "motion/react";
+163-import { FuelProfile, FuelLog, IncomeEntry, ExpenseEntry, TripEntry } from "./types";
+164:import { translations } from "./utils/lang";
+165-import { TripModal } from "./TripModal";
+166-
+167-const DEFAULT_PRESETS = [10000, 15000, 20000, 25000];
+168-const DEFAULT_PROFILES: FuelProfile[] = [
+169-  { name: "Pertalite", price: 10000, color: "green" },
+170-  { name: "Pertamax", price: 12200, color: "blue" },
+171-  { name: "Pertamax Turbo", price: 14500, color: "red" },
+172-];
+173-
+174-export const getInferredColor = (profileName: string): string => {
+175-  const name = (profileName || "").toLowerCase();
+176-  if (name.includes("lite") && !name.includes("dexlite")) return "green";
+177-  if (name.includes("turbo")) return "red";
+178-  if (name.includes("max") || name.includes("pertamax")) return "blue";
+179-  if (name.includes("dexlite")) return "amber";
+180-  if (
+181-    name.includes("dex") ||
+182-    name.includes("solar") ||
+183-    name.includes("pertamina dex")
+184-  )
+--
+838-  // Translate helper
+839-  const t = useMemo(() => {
+840:    return translations[lang] || translations.id;
+841-  }, [lang]);
+842-
+843-  // Dynamic localization formatters
+844-  const formatCurrency = (val: number) => {
+845-    const formattedVal = Math.round(val).toLocaleString(
+846-      separator === "dot" ? "id-ID" : "en-US",
+847-      {
+848-        minimumFractionDigits: 0,
+849-        maximumFractionDigits: 0,
+850-      },
+851-    );
+852-    return `${currency} ${formattedVal}`;
+853-  };
+854-
+855-  const formatVolume = (val: number) => {
+856-    const formatted = val.toLocaleString(
+857-      separator === "dot" ? "id-ID" : "en-US",
+858-      {
+859-        minimumFractionDigits: 2,
+860-        maximumFractionDigits: 2,
