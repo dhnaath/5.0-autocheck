@@ -1,0 +1,30 @@
+{
+  "name": "Fuel and Income Tracker",
+  "short_name": "Fuel Tracker",
+  "description": "Lacak konsumsi BBM, efisiensi kendaraan, dan pendapatan/pengeluaran secara offline.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0f172b",
+  "theme_color": "#0f172b",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

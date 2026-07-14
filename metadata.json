@@ -1,0 +1,6 @@
+{
+  "name": "Fuel and Income Tracker",
+  "description": "A simple, offline-capable application to track fuel usage, vehicle efficiency, and work income/expenses.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

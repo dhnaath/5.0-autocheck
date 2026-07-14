@@ -1,0 +1,220 @@
+<div className="p-5 flex flex-col gap-5 overflow-y-auto bg-slate-50">
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      <div className="flex flex-col gap-2 flex-1">
+                        <label className="text-xs font-bold text-slate-700 leading-tight">
+                          Nama Komponen:
+                        </label>
+                        <input
+                          type="text"
+                          value={partFormName}
+                          onChange={(e) => setPartFormName(e.target.value)}
+                          placeholder="Busi"
+                          className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2 flex-1">
+                        <label className="text-xs font-bold text-slate-700 leading-tight whitespace-nowrap overflow-hidden text-ellipsis">
+                          Usia Komponen (KM):
+                        </label>
+                        <input
+                          type="number"
+                          value={partFormLifespan}
+                          onChange={(e) => setPartFormLifespan(e.target.value)}
+                          placeholder="10000"
+                          className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-4">
+                      <div className="flex flex-col gap-2 flex-1 w-1/2">
+                        <label className="text-xs font-bold text-slate-700 leading-tight">
+                          Merk/Tipe:
+                        </label>
+                        <input
+                          type="text"
+                          value={partFormMerk}
+                          onChange={(e) => setPartFormMerk(e.target.value)}
+                          placeholder="NGK"
+                          className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2 flex-1 w-1/2">
+                        <label className="text-xs font-bold text-slate-700 leading-tight">
+                          Kode Part:
+                        </label>
+                        <input
+                          type="text"
+                          value={partFormNoPart}
+                          onChange={(e) => setPartFormNoPart(e.target.value)}
+                          placeholder="Part Number"
+                          className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
+                        />
+                      </div>
+                    </div>
+
+
+                    <div className="flex gap-4">
+                      <div className="flex flex-col gap-2 flex-1 w-1/2">
+                        <label className="text-xs font-bold text-slate-700 leading-tight">
+                          Harga (Opsional):
+                        </label>
+                        <input
+                          type="number"
+                          value={partFormPrice}
+                          onChange={(e) => setPartFormPrice(e.target.value)}
+                          placeholder="50000"
+                          className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2 flex-1 w-1/2">
+                        <label className="text-xs font-bold text-slate-700 leading-tight">
+                          Biaya / KM (Estimasi):
+                        </label>
+                        <div className="w-full bg-slate-100 border border-slate-200 text-slate-500 text-sm font-bold py-3 px-4 rounded-xl outline-none select-none flex items-center justify-between overflow-hidden">
+                          <span className="truncate">
+                            {(() => {
+                              const price = parseFloat(partFormPrice) || 0;
+                              const lifespan = parseFloat(partFormLifespan) || 0;
+                              if (lifespan <= 0 || price <= 0) return "Rp 0";
+                              return "Rp " + (price / lifespan).toFixed(2);
+                            })()}
+                          </span>
+                          <span className="text-xs font-normal text-slate-400 ml-2 whitespace-nowrap">/ KM</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-bold text-slate-700 leading-tight">
+                        Catatan:
+                      </label>
+                      <textarea
+                        value={partFormNotes}
+                        onChange={(e) => setPartFormNotes(e.target.value)}
+                        placeholder="Catatan tambahan (opsional)"
+                        rows={2}
+                        className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800 resize-none"
+                      />
+                    </div>
+
+
+
+                    <div className="flex gap-4">
+                      <div className="flex flex-col gap-2 flex-1 w-1/2">
+                        <label className="text-xs font-bold text-slate-700 leading-tight whitespace-nowrap overflow-hidden text-ellipsis">
+                          Servis Terakhir Odo (KM):
+                        </label>
+                        <input
+                          type="number"
+                          value={partFormLastOdo}
+                          onChange={(e) => setPartFormLastOdo(e.target.value)}
+                          placeholder="15400"
+                          className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-2 flex-1 w-1/2">
+                        <label className="text-xs font-bold text-slate-700 leading-tight whitespace-nowrap overflow-hidden text-ellipsis">
+                          Sisa Usia (KM):
+                        </label>
+                        <input
+                          type="number"
+                          value={(() => {
+                            const currentOdo = lastLoggedOdometer || 0;
+                            const lifespan = parseFloat(partFormLifespan) || 0;
+                            const lastOdo = parseFloat(partFormLastOdo) || 0;
+                            if (lifespan <= 0) return 0;
+                            const kmPassed = currentOdo - lastOdo;
+                            return Math.max(0, lifespan - kmPassed).toString();
+                          })()}
+                          onChange={(e) => {
+                            const remainStr = e.target.value;
+                            if (remainStr === "") return;
+                            const remain = parseFloat(remainStr) || 0;
+                            const currentOdo = lastLoggedOdometer || 0;
+                            const lifespan = parseFloat(partFormLifespan) || 0;
+                            const kmPassed = lifespan - remain;
+                            const newLastOdo = Math.round(currentOdo - kmPassed);
+                            setPartFormLastOdo(newLastOdo.toString());
+                          }}
+                          placeholder="Sisa usia dalam KM"
+                          className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold py-3 px-4 rounded-xl outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <div className="flex justify-between items-end">
+                        <label className="text-xs font-bold text-slate-700 leading-tight">
+                          Kondisi Sekarang (%):
+                        </label>
+                        <span className="text-sm font-bold text-indigo-600">
+                          {(() => {
+                            const currentOdo = lastLoggedOdometer || 0;
+                            const lifespan = parseFloat(partFormLifespan) || 0;
+                            const lastOdo = parseFloat(partFormLastOdo) || 0;
+                            if (lifespan <= 0) return 0;
+                            const kmPassed = currentOdo - lastOdo;
+                            const remain = Math.max(0, lifespan - kmPassed);
+                            return Math.min(100, Math.round((remain / lifespan) * 100));
+                          })()}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={(() => {
+                          const currentOdo = lastLoggedOdometer || 0;
+                          const lifespan = parseFloat(partFormLifespan) || 0;
+                          const lastOdo = parseFloat(partFormLastOdo) || 0;
+                          if (lifespan <= 0) return 0;
+                          const kmPassed = currentOdo - lastOdo;
+                          const remain = Math.max(0, lifespan - kmPassed);
+                          return Math.min(100, Math.round((remain / lifespan) * 100));
+                        })()}
+                        onChange={(e) => {
+                          const percent = parseInt(e.target.value) || 0;
+                          const currentOdo = lastLoggedOdometer || 0;
+                          const lifespan = parseFloat(partFormLifespan) || 0;
+                          if (lifespan > 0) {
+                            const remain = (percent / 100) * lifespan;
+                            const kmPassed = lifespan - remain;
+                            const newLastOdo = Math.round(currentOdo - kmPassed);
+                            setPartFormLastOdo(newLastOdo.toString());
+                          }
+                        }}
+                        className="w-full accent-indigo-600 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+                      />
+                      <p className="text-[10px] text-slate-500 font-medium">
+                        Geser untuk ubah kondisi. Odo Servis Terakhir akan otomatis menyesuaikan.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-bold text-slate-700 leading-tight">
+                        Ikon / Kategori:
+                      </label>
+                      <div className="mt-1 h-[200px] overflow-y-auto w-full bg-slate-50 border border-slate-200 rounded-xl p-2 pb-[80px]">
+                        <div className="grid grid-cols-6 gap-2">
+                          {SPARE_PART_ICONS.map((ico) => {
+                            const IconComponent =
+                              LucideIcons[ico] || LucideIcons.Wrench;
+                            return (
+                              <button
+                                key={ico}
+                                onClick={() => setPartFormIcon(ico)}
+                                className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all shrink-0 ${partFormIcon === ico ? "bg-indigo-500 border-indigo-600 text-white " : "bg-white border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-800"}`}
+                                aria-label={ico}
+                                title={ico}
+                              >
+                                <IconComponent className="w-5 h-5" />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  

@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#0f172b" />
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ef4444" />
+      <stop offset="50%" stop-color="#f97316" />
+      <stop offset="100%" stop-color="#eab308" />
+    </linearGradient>
+    <linearGradient id="indigoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1" />
+      <stop offset="100%" stop-color="#4f46e5" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Solid rounded background for maskable icon compliance -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+
+  <!-- Outer Glow Arc / Gauge Outline -->
+  <path d="M 120 360 A 160 160 0 1 1 392 360" fill="none" stroke="#334155" stroke-width="14" stroke-linecap="round" />
+  
+  <!-- Active Speedometer/Fuel Arc Glow -->
+  <path d="M 120 360 A 160 160 0 1 1 312 180" fill="none" stroke="url(#indigoGrad)" stroke-width="16" stroke-linecap="round" filter="url(#glow)" />
+
+  <!-- Center Icon Group -->
+  <g transform="translate(186, 186)">
+    <!-- Elegant Fuel Pump Icon -->
+    <path d="M120 20C97.9 20 80 37.9 80 60V140H110V180H50V140H70V60C70 32.4 92.4 10 120 10C147.6 10 170 32.4 170 60V115C170 123.3 176.7 130 185 130C193.3 130 200 123.3 200 115V80C194.5 80 190 75.5 190 70C190 64.5 194.5 60 200 60C205.5 60 210 64.5 210 70V115C210 128.8 198.8 140 185 140C171.2 140 160 128.8 160 115V60C160 37.9 142.1 20 120 20Z" fill="url(#accentGrad)" />
+    <!-- Fuel hose terminal element -->
+    <rect x="195" y="45" width="10" height="15" rx="3" fill="#eab308" />
+    <path d="M120 40H100V55H120V40Z" fill="#1e293b" opacity="0.3" />
+  </g>
+
+  <!-- Needle / Pointer of the Gauge -->
+  <g transform="translate(256, 320)">
+    <circle cx="0" cy="0" r="16" fill="#f8fafc" />
+    <path d="M -8 0 L 0 -130 L 8 0 Z" fill="#f97316" transform="rotate(-30)" />
+    <circle cx="0" cy="0" r="6" fill="#0f172b" />
+  </g>
+
+  <!-- Decorative Sparkles/Ticks -->
+  <circle cx="120" cy="360" r="6" fill="#64748b" />
+  <circle cx="392" cy="360" r="6" fill="#64748b" />
+  <circle cx="256" cy="140" r="8" fill="#eab308" filter="url(#glow)" />
+</svg>
